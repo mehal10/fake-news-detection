@@ -1,0 +1,114 @@
+{
+  "model_id": "20261117_165935_f1a0df4f",
+  "name": "FakeNews LR Full+Leads",
+  "task": "fake_news",
+  "algorithm": "logistic_regression",
+  "feature_method": "tfidf",
+  "dataset_name": "Fake News + Leads",
+  "dataset_id": null,
+  "metrics": {
+    "accuracy": 0.926,
+    "precision": 0.9263,
+    "recall": 0.926,
+    "f1_score": 0.926,
+    "labels": [
+      "fake",
+      "real"
+    ],
+    "confusion_matrix": [
+      [
+        1665,
+        111
+      ],
+      [
+        152,
+        1628
+      ]
+    ],
+    "per_class": {
+      "fake": {
+        "precision": 0.9163,
+        "recall": 0.9375,
+        "f1": 0.9268,
+        "support": 1776
+      },
+      "real": {
+        "precision": 0.9362,
+        "recall": 0.9146,
+        "f1": 0.9253,
+        "support": 1780
+      }
+    },
+    "classification_report": {
+      "fake": {
+        "precision": 0.9163456246560264,
+        "recall": 0.9375,
+        "f1-score": 0.9268021152240468,
+        "support": 1776.0
+      },
+      "real": {
+        "precision": 0.9361702127659575,
+        "recall": 0.9146067415730337,
+        "f1-score": 0.9252628587666951,
+        "support": 1780.0
+      },
+      "accuracy": 0.9260404949381328,
+      "macro avg": {
+        "precision": 0.926257918710992,
+        "recall": 0.9260533707865168,
+        "f1-score": 0.9260324869953709,
+        "support": 3556.0
+      },
+      "weighted avg": {
+        "precision": 0.9262690686480616,
+        "recall": 0.9260404949381328,
+        "f1-score": 0.9260316212718291,
+        "support": 3556.0
+      }
+    }
+  },
+  "config": {
+    "algorithm": "logistic_regression",
+    "feature_method": "tfidf",
+    "feature_params": {
+      "max_features": 30000,
+      "min_df": 2,
+      "ngram_range": [
+        1,
+        2
+      ]
+    },
+    "model_params": {
+      "C": 1.0,
+      "max_iter": 800,
+      "class_weight": "balanced"
+    },
+    "random_state": 42,
+    "preprocess": {
+      "lowercase": true,
+      "remove_urls": true,
+      "remove_html": true,
+      "remove_special_chars": true,
+      "normalize_whitespace": true,
+      "tokenize": true,
+      "remove_stopwords": true,
+      "preserve_negation": false,
+      "stem": false,
+      "lemmatize": true,
+      "min_token_length": 1,
+      "language": "english"
+    },
+    "labels": [
+      "fake",
+      "real"
+    ]
+  },
+  "created_at": "2026-11-17T16:59:48.908070+00:00",
+  "is_active": false,
+  "train_size": 14220,
+  "test_size": 3556,
+  "training_time_sec": 13.0943,
+  "testing_time_sec": 0.0055,
+  "status": "ready",
+  "message": "Trained on 14220 samples, tested on 3556. Accuracy=0.9260"
+}

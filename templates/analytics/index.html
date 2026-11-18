@@ -1,0 +1,494 @@
+{% extends 'base.html' %}
+
+{% block title %}Reports & Analytics{% endblock %}
+
+{% block extra_css %}
+<style>
+  .filter-presets { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+  .preset-btn {
+    padding: 0.35rem 0.75rem; border-radius: 999px; border: 1px solid var(--color-gray-300);
+    background: #fff; font-size: 0.8125rem; cursor: pointer; color: var(--color-gray-700);
+  }
+  .preset-btn.active { background: var(--color-gray-900); color: #fff; border-color: var(--color-gray-900); }
+  .chart-wrap { position: relative; height: 240px; }
+  .chart-wrap-sm { position: relative; height: 200px; }
+  .note-box {
+    font-size: 0.8125rem; color: var(--color-gray-600);
+    border-left: 3px solid var(--color-gray-300); padding-left: 0.75rem; line-height: 1.5;
+  }
+  .cm-table { border-collapse: collapse; font-size: 0.8125rem; }
+  .cm-table th, .cm-table td { border: 1px solid var(--color-gray-200); padding: 0.35rem 0.6rem; text-align: center; }
+  .cm-table th { background: var(--color-gray-50); }
+  .best-badge {
+    display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px;
+    background: var(--color-success-bg); color: var(--color-success); font-size: 0.75rem; font-weight: 600;
+  }
+  @media (max-width: 900px) {
+    .analytics-grid-2 { grid-template-columns: 1fr !important; }
+  }
+  @media print {
+    .sidebar, .topbar, .no-print { display: none !important; }
+    .main-content { margin: 0 !important; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mb-4 flex items-center justify-between" style="flex-wrap:wrap;gap:0.75rem;">
+  <div>
+    <p class="text-muted text-sm">
+      Usage statistics from analysis history · Model metrics from training evaluations
+    </p>
+    <p class="text-sm text-muted mt-1">Period: <strong>{{ range_label }}</strong></p>
+  </div>
+  <div class="flex gap-2 no-print" style="flex-wrap:wrap;">
+    <a href="{% url 'analytics:export_csv' %}?{{ query_params }}" class="btn btn-secondary btn-sm">
+      <i data-lucide="download" style="width:14px;height:14px;"></i> CSV History
+    </a>
+    <a href="{% url 'analytics:export_metrics' %}" class="btn btn-secondary btn-sm">
+      <i data-lucide="table" style="width:14px;height:14px;"></i> CSV Metrics
+    </a>
+    <a href="{% url 'analytics:export_pdf' %}?{{ query_params }}" class="btn btn-secondary btn-sm">
+      <i data-lucide="file-text" style="width:14px;height:14px;"></i> PDF Report
+    </a>
+    <button type="button" class="btn btn-ghost btn-sm" onclick="window.print()">
+      <i data-lucide="printer" style="width:14px;height:14px;"></i> Print
+    </button>
+  </div>
+</div>
+
+<!-- Date filters -->
+<div class="card mb-6 no-print">
+  <div class="card-body">
+    <form method="get" id="filter-form">
+      <div class="filter-presets mb-3">
+        {% for key, label in presets.items %}
+          {% if key != 'custom' %}
+          <button type="submit" name="preset" value="{{ key }}"
+                  class="preset-btn {% if preset == key %}active{% endif %}">{{ label }}</button>
+          {% endif %}
+        {% endfor %}
+      </div>
+      <div class="flex gap-2" style="flex-wrap:wrap;align-items:end;">
+        <div class="form-group" style="margin:0;">
+          <label class="form-label" for="from">From</label>
+          <input type="date" id="from" name="from" class="form-control" value="{{ date_from }}">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label class="form-label" for="to">To</label>
+          <input type="date" id="to" name="to" class="form-control" value="{{ date_to }}">
+        </div>
+        <input type="hidden" name="preset" value="custom">
+        <button type="submit" class="btn btn-primary btn-sm">Apply Range</button>
+        <a href="{% url 'analytics:index' %}" class="btn btn-ghost btn-sm">Reset</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Overview cards -->
+<div class="stats-grid mb-6">
+  <div class="stat-card">
+    <div class="stat-label">Total News Analysed</div>
+    <div class="stat-value">{{ stats.total }}</div>
+    <div class="stat-meta">
+      {{ stats.type_fake_news }} detection · {{ stats.type_sentiment }} sentiment · {{ stats.type_combined }} combined
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Real News</div>
+    <div class="stat-value">{{ stats.real }}</div>
+    <div class="stat-pct">{% if stats.real or stats.fake %}{{ stats.real_pct }}% of labelled{% else %}—{% endif %}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Fake News</div>
+    <div class="stat-value">{{ stats.fake }}</div>
+    <div class="stat-pct">{% if stats.real or stats.fake %}{{ stats.fake_pct }}% of labelled{% else %}—{% endif %}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Positive</div>
+    <div class="stat-value">{{ stats.positive }}</div>
+    <div class="stat-pct">{% if stats.positive or stats.negative or stats.neutral %}{{ stats.positive_pct }}%{% else %}—{% endif %}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Negative</div>
+    <div class="stat-value">{{ stats.negative }}</div>
+    <div class="stat-pct">{% if stats.positive or stats.negative or stats.neutral %}{{ stats.negative_pct }}%{% else %}—{% endif %}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Neutral</div>
+    <div class="stat-value">{{ stats.neutral }}</div>
+    <div class="stat-pct">{% if stats.positive or stats.negative or stats.neutral %}{{ stats.neutral_pct }}%{% else %}—{% endif %}</div>
+  </div>
+</div>
+
+{% if not stats.has_data %}
+<div class="alert alert-warning mb-6">
+  No analysis records in this period. Run detections to populate usage charts.
+  Model evaluation tables below still show trained models when available.
+</div>
+{% endif %}
+
+<!-- Fake news analytics -->
+<h2 class="text-lg font-semibold mb-3">Fake News Analytics</h2>
+<div class="grid analytics-grid-2 mb-6" style="grid-template-columns:1fr 1fr;gap:1.25rem;">
+  <div class="card">
+    <div class="card-header"><h3 class="card-title">Fake vs Real Distribution</h3></div>
+    <div class="card-body">
+      <div class="chart-wrap-sm"><canvas id="chartFakeReal"></canvas></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header"><h3 class="card-title">Daily Fake / Real Trends</h3></div>
+    <div class="card-body">
+      <div class="chart-wrap"><canvas id="chartFakeTrends"></canvas></div>
+    </div>
+  </div>
+  <div class="card" style="grid-column:1 / -1;">
+    <div class="card-header"><h3 class="card-title">Monthly Analysis Counts</h3></div>
+    <div class="card-body">
+      <div class="chart-wrap"><canvas id="chartMonthly"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- Sentiment analytics -->
+<h2 class="text-lg font-semibold mb-3">Sentiment Analytics</h2>
+<div class="grid analytics-grid-2 mb-6" style="grid-template-columns:1fr 1fr;gap:1.25rem;">
+  <div class="card">
+    <div class="card-header"><h3 class="card-title">Sentiment Distribution</h3></div>
+    <div class="card-body">
+      <div class="chart-wrap-sm"><canvas id="chartSentiment"></canvas></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header"><h3 class="card-title">Daily Sentiment Trends</h3></div>
+    <div class="card-body">
+      <div class="chart-wrap"><canvas id="chartSentimentTrends"></canvas></div>
+    </div>
+  </div>
+  <div class="card" style="grid-column:1 / -1;">
+    <div class="card-header"><h3 class="card-title">Monthly Sentiment Statistics</h3></div>
+    <div class="card-body">
+      <div class="chart-wrap"><canvas id="chartMonthlySentiment"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- Model performance -->
+<h2 class="text-lg font-semibold mb-2">Model Performance Comparison</h2>
+<p class="note-box mb-4">{{ model_comparison.note }}</p>
+
+<div class="card mb-4">
+  <div class="card-header"><h3 class="card-title">Fake News Models — Evaluation Metrics</h3></div>
+  <div class="card-body" style="padding:0;overflow-x:auto;">
+    {% if model_comparison.fake_news_models %}
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Model</th>
+          <th>Algorithm</th>
+          <th>Features</th>
+          <th>Dataset</th>
+          <th>Accuracy</th>
+          <th>Precision</th>
+          <th>Recall</th>
+          <th>F1</th>
+          <th>Train (s)</th>
+          <th>Test (s)</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in model_comparison.fake_news_models %}
+        <tr>
+          <td>
+            {{ m.name }}
+            {% if m.is_active %}<span class="badge badge-success" style="font-size:0.65rem;">Active</span>{% endif %}
+            {% if model_comparison.best_fake and model_comparison.best_fake.model_id == m.model_id %}
+              <span class="best-badge">Best F1</span>
+            {% endif %}
+          </td>
+          <td class="text-sm">{{ m.algorithm }}</td>
+          <td class="text-sm">{{ m.feature_method }}</td>
+          <td class="text-sm">{{ m.dataset_name }}</td>
+          <td>{{ m.accuracy|default:"—" }}</td>
+          <td>{{ m.precision|default:"—" }}</td>
+          <td>{{ m.recall|default:"—" }}</td>
+          <td>{{ m.f1_score|default:"—" }}</td>
+          <td class="text-sm">{{ m.training_time_sec|default:"—" }}</td>
+          <td class="text-sm">{{ m.testing_time_sec|default:"—" }}</td>
+          <td class="text-sm text-muted">n={{ m.test_size }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state" style="padding:2rem;">
+      <div class="empty-state-title">No trained fake-news models</div>
+      <div class="empty-state-text">Train models from the Model Training page to see evaluation metrics.</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header"><h3 class="card-title">Sentiment Models — Evaluation Metrics</h3></div>
+  <div class="card-body" style="padding:0;overflow-x:auto;">
+    {% if model_comparison.sentiment_models %}
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Model</th>
+          <th>Algorithm</th>
+          <th>Features</th>
+          <th>Dataset</th>
+          <th>Accuracy</th>
+          <th>Precision</th>
+          <th>Recall</th>
+          <th>F1</th>
+          <th>Train (s)</th>
+          <th>Test (s)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in model_comparison.sentiment_models %}
+        <tr>
+          <td>
+            {{ m.name }}
+            {% if m.is_active %}<span class="badge badge-success" style="font-size:0.65rem;">Active</span>{% endif %}
+            {% if model_comparison.best_sentiment and model_comparison.best_sentiment.model_id == m.model_id %}
+              <span class="best-badge">Best F1</span>
+            {% endif %}
+          </td>
+          <td class="text-sm">{{ m.algorithm }}</td>
+          <td class="text-sm">{{ m.feature_method }}</td>
+          <td class="text-sm">{{ m.dataset_name }}</td>
+          <td>{{ m.accuracy|default:"—" }}</td>
+          <td>{{ m.precision|default:"—" }}</td>
+          <td>{{ m.recall|default:"—" }}</td>
+          <td>{{ m.f1_score|default:"—" }}</td>
+          <td class="text-sm">{{ m.training_time_sec|default:"—" }}</td>
+          <td class="text-sm">{{ m.testing_time_sec|default:"—" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state" style="padding:2rem;">
+      <div class="empty-state-title">No trained sentiment models</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Comparison chart + confusion matrices -->
+<div class="grid analytics-grid-2 mb-6" style="grid-template-columns:1fr 1fr;gap:1.25rem;">
+  <div class="card">
+    <div class="card-header"><h3 class="card-title">Model Comparison (Accuracy / F1)</h3></div>
+    <div class="card-body">
+      <div class="chart-wrap"><canvas id="chartModelCompare"></canvas></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header"><h3 class="card-title">Feature Method Averages</h3></div>
+    <div class="card-body" style="padding:0;overflow-x:auto;">
+      {% if model_comparison.feature_compare %}
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Dataset</th>
+            <th>Method</th>
+            <th>Models</th>
+            <th>Avg Acc</th>
+            <th>Avg F1</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in model_comparison.feature_compare %}
+          <tr>
+            <td class="text-sm">{{ row.dataset_name }}</td>
+            <td>{{ row.feature_method }}</td>
+            <td>{{ row.model_count }}</td>
+            <td>{{ row.avg_accuracy|default:"—" }}</td>
+            <td>{{ row.avg_f1|default:"—" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <p class="note-box" style="margin:0.75rem 1rem 1rem;">
+        TF-IDF vs Word2Vec averages are grouped by dataset. Different datasets are not equivalent.
+      </p>
+      {% else %}
+      <div class="empty-state" style="padding:2rem;"><div class="empty-state-text">No feature comparisons available.</div></div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Confusion matrices -->
+{% if model_comparison.fake_news_models %}
+<h3 class="font-semibold mb-3">Confusion Matrices (Fake News Models)</h3>
+<div class="grid analytics-grid-2 mb-6" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem;">
+  {% for m in model_comparison.fake_news_models %}
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title" style="font-size:0.9rem;">{{ m.name }}</h3>
+    </div>
+    <div class="card-body">
+      <p class="text-sm text-muted mb-2">
+        Dataset: {{ m.dataset_name }} · Features: {{ m.feature_method }} · Test n={{ m.test_size }}
+      </p>
+      {% if m.cm_rows %}
+      <table class="cm-table">
+        <thead>
+          <tr>
+            <th></th>
+            {% for lab in m.labels %}
+            <th>Pred {{ lab }}</th>
+            {% empty %}
+            <th>Predicted</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in m.cm_rows %}
+          <tr>
+            <th style="text-align:left;">True {{ row.true_label }}</th>
+            {% for cell in row.cells %}
+            <td>{{ cell }}</td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="text-sm text-muted">Confusion matrix not stored for this model.</p>
+      {% endif %}
+
+      {% if m.classification_report %}
+      <details class="mt-3">
+        <summary class="text-sm" style="cursor:pointer;">Classification report</summary>
+        <pre class="text-sm" style="margin-top:0.5rem;overflow:auto;max-height:180px;background:var(--color-gray-50);padding:0.5rem;border-radius:6px;">{{ m.classification_report }}</pre>
+      </details>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+  const data = {{ chart_json|safe }};
+  const gray = '#737373';
+  const dark = '#171717';
+  const success = '#16a34a';
+  const error = '#dc2626';
+  const neutral = '#a3a3a3';
+
+  function doughnut(id, labels, values, colors) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const empty = values.every(v => !v);
+    new Chart(el, {
+      type: 'doughnut',
+      data: {
+        labels,
+        datasets: [{
+          data: empty ? [1] : values,
+          backgroundColor: empty ? ['#e5e5e5'] : colors,
+          borderWidth: 0
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+          tooltip: { enabled: !empty }
+        }
+      }
+    });
+  }
+
+  function line(id, labels, datasets) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    new Chart(el, {
+      type: 'line',
+      data: { labels, datasets },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        scales: {
+          y: { beginAtZero: true, ticks: { precision: 0 } },
+          x: { ticks: { maxRotation: 45, font: { size: 10 } } }
+        },
+        plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } }
+      }
+    });
+  }
+
+  function bar(id, labels, datasets) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    new Chart(el, {
+      type: 'bar',
+      data: { labels, datasets },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        scales: { y: { beginAtZero: true, max: 1 } },
+        plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } }
+      }
+    });
+  }
+
+  doughnut('chartFakeReal', data.fake_vs_real.labels, data.fake_vs_real.values, [success, error]);
+  doughnut('chartSentiment', data.sentiment_dist.labels, data.sentiment_dist.values, [success, error, neutral]);
+
+  line('chartFakeTrends', data.fake_trends.labels, [
+    { label: 'Real', data: data.fake_trends.real, borderColor: success, backgroundColor: 'transparent', tension: 0.25 },
+    { label: 'Fake', data: data.fake_trends.fake, borderColor: error, backgroundColor: 'transparent', tension: 0.25 }
+  ]);
+
+  line('chartSentimentTrends', data.sentiment_trends.labels, [
+    { label: 'Positive', data: data.sentiment_trends.positive, borderColor: success, backgroundColor: 'transparent', tension: 0.25 },
+    { label: 'Negative', data: data.sentiment_trends.negative, borderColor: error, backgroundColor: 'transparent', tension: 0.25 },
+    { label: 'Neutral', data: data.sentiment_trends.neutral, borderColor: gray, backgroundColor: 'transparent', tension: 0.25 }
+  ]);
+
+  line('chartMonthly', data.monthly_counts.labels, [
+    { label: 'Analyses', data: data.monthly_counts.values, borderColor: dark, backgroundColor: 'transparent', tension: 0.2 }
+  ]);
+
+  line('chartMonthlySentiment', data.monthly_sentiment.labels, [
+    { label: 'Positive', data: data.monthly_sentiment.positive, borderColor: success, backgroundColor: 'transparent', tension: 0.2 },
+    { label: 'Negative', data: data.monthly_sentiment.negative, borderColor: error, backgroundColor: 'transparent', tension: 0.2 },
+    { label: 'Neutral', data: data.monthly_sentiment.neutral, borderColor: gray, backgroundColor: 'transparent', tension: 0.2 }
+  ]);
+
+  // Model comparison bar — prefer fake news models; fall back to sentiment
+  const models = (data.model_comparison.fake_news_models || []).concat(
+    data.model_comparison.sentiment_models || []
+  );
+  if (models.length) {
+    bar('chartModelCompare',
+      models.map(m => m.name.length > 18 ? m.name.slice(0, 17) + '…' : m.name),
+      [
+        { label: 'Accuracy', data: models.map(m => m.accuracy || 0), backgroundColor: dark },
+        { label: 'F1', data: models.map(m => m.f1_score || 0), backgroundColor: gray }
+      ]
+    );
+  } else {
+    const el = document.getElementById('chartModelCompare');
+    if (el) {
+      el.parentElement.innerHTML = '<div class="empty-state" style="padding:2rem;"><div class="empty-state-text">Train models to compare metrics.</div></div>';
+    }
+  }
+})();
+</script>
+{% endblock %}

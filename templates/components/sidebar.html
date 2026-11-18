@@ -1,0 +1,65 @@
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <a href="{% url 'core:landing' %}" class="sidebar-brand">
+      <div class="sidebar-logo">NA</div>
+      <span class="sidebar-brand-text">News Analysis</span>
+    </a>
+    <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar" type="button">
+      <i data-lucide="panel-left-close" style="width:18px;height:18px;"></i>
+    </button>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Main Menu</div>
+      <a href="{% url 'dashboard:index' %}" class="nav-item {% if active_menu == 'dashboard' %}active{% endif %}">
+        <span class="nav-icon"><i data-lucide="layout-dashboard"></i></span>
+        <span class="sidebar-label">Dashboard</span>
+      </a>
+      <a href="{% url 'detector:index' %}" class="nav-item {% if active_menu == 'detector' %}active{% endif %}">
+        <span class="nav-icon"><i data-lucide="shield-alert"></i></span>
+        <span class="sidebar-label">Fake News Detection</span>
+      </a>
+      <a href="{% url 'sentiment:index' %}" class="nav-item {% if active_menu == 'sentiment' %}active{% endif %}">
+        <span class="nav-icon"><i data-lucide="message-square-text"></i></span>
+        <span class="sidebar-label">Sentiment Analysis</span>
+      </a>
+      <a href="{% url 'combined_analysis:index' %}" class="nav-item {% if active_menu == 'combined' %}active{% endif %}">
+        <span class="nav-icon"><i data-lucide="git-merge"></i></span>
+        <span class="sidebar-label">Combined Analysis</span>
+      </a>
+      <a href="{% url 'history:index' %}" class="nav-item {% if active_menu == 'history' %}active{% endif %}">
+        <span class="nav-icon"><i data-lucide="history"></i></span>
+        <span class="sidebar-label">Analysis History</span>
+      </a>
+      <a href="{% url 'analytics:index' %}" class="nav-item {% if active_menu == 'analytics' %}active{% endif %}">
+        <span class="nav-icon"><i data-lucide="bar-chart-3"></i></span>
+        <span class="sidebar-label">Reports & Analytics</span>
+      </a>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">ML Engine</div>
+      <a href="{% url 'ml_engine:dataset_list' %}" class="nav-item {% if active_menu == 'datasets' %}active{% endif %}">
+        <span class="nav-icon"><i data-lucide="database"></i></span>
+        <span class="sidebar-label">Dataset Management</span>
+      </a>
+      <a href="{% url 'ml_engine:model_training' %}" class="nav-item {% if active_menu == 'training' %}active{% endif %}">
+        <span class="nav-icon"><i data-lucide="brain"></i></span>
+        <span class="sidebar-label">Model Training</span>
+      </a>
+      <a href="{% url 'ml_engine:preprocess_demo' %}" class="nav-item {% if active_menu == 'preprocess' %}active{% endif %}">
+        <span class="nav-icon"><i data-lucide="wand-2"></i></span>
+        <span class="sidebar-label">Text Preprocessing</span>
+      </a>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Information</div>
+      <a href="{% url 'core:about' %}" class="nav-item {% if active_menu == 'about' %}active{% endif %}">
+        <span class="nav-icon"><i data-lucide="info"></i></span>
+        <span class="sidebar-label">About Project</span>
+      </a>
+    </div>
+  </nav>
+</aside>

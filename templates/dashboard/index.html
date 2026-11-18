@@ -1,0 +1,569 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+  .dashboard-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  .dashboard-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .dashboard-filters .form-control {
+    width: auto;
+    min-width: 140px;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.8125rem;
+  }
+  .stat-card .stat-pct {
+    font-size: 0.75rem;
+    color: var(--color-gray-400);
+    margin-top: 0.125rem;
+  }
+  .charts-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+  @media (max-width: 900px) {
+    .charts-grid { grid-template-columns: 1fr; }
+  }
+  .chart-card .card-body {
+    padding: 1rem 1.25rem 1.25rem;
+  }
+  .chart-container {
+    position: relative;
+    height: 240px;
+    width: 100%;
+  }
+  .latest-ts {
+    font-size: 0.75rem;
+    color: var(--color-gray-400);
+  }
+  .badge-real { background: var(--color-success-bg); color: var(--color-success); }
+  .badge-fake { background: var(--color-error-bg); color: var(--color-error); }
+  .badge-positive { background: var(--color-success-bg); color: var(--color-success); }
+  .badge-negative { background: var(--color-error-bg); color: var(--color-error); }
+  .badge-neutral { background: var(--color-gray-100); color: var(--color-gray-600); }
+  .type-badge {
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .refresh-spinning i {
+    animation: spin 0.7s linear infinite;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-toolbar">
+  <div>
+    <p class="text-muted text-sm mb-1">Overview of analyses performed by the system.</p>
+    {% if stats.latest_at %}
+      <p class="latest-ts" id="latestTs">Latest analysis: {{ stats.latest_at|date:"M d, Y H:i" }}</p>
+    {% else %}
+      <p class="latest-ts" id="latestTs">No analyses yet</p>
+    {% endif %}
+  </div>
+  <div class="dashboard-filters">
+    <form method="get" action="{% url 'dashboard:index' %}" class="flex items-center gap-2" id="dateFilterForm">
+      <label class="text-xs text-muted" for="filter_from">From</label>
+      <input type="date" id="filter_from" name="from" class="form-control" value="{{ filter_from }}">
+      <label class="text-xs text-muted" for="filter_to">To</label>
+      <input type="date" id="filter_to" name="to" class="form-control" value="{{ filter_to }}">
+      <button type="submit" class="btn btn-secondary btn-sm">Apply</button>
+      {% if filter_from or filter_to %}
+        <a href="{% url 'dashboard:index' %}" class="btn btn-ghost btn-sm">Clear</a>
+      {% endif %}
+    </form>
+    <button type="button" class="btn btn-secondary btn-sm" id="refreshBtn" title="Refresh statistics">
+      <i data-lucide="refresh-cw" style="width:14px;height:14px;"></i>
+      Refresh
+    </button>
+  </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="stats-grid mb-6" id="statsGrid">
+  <div class="stat-card">
+    <div class="stat-label">Total News Analysed</div>
+    <div class="stat-value" id="stat-total">{{ stats.total_news }}</div>
+    <div class="stat-meta" id="stat-total-meta">
+      {% if stats.has_data %}
+        {{ stats.type_fake_news }} detection · {{ stats.type_sentiment }} sentiment · {{ stats.type_combined }} combined
+      {% else %}
+        All time
+      {% endif %}
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Real News Detected</div>
+    <div class="stat-value" id="stat-real">{{ stats.real_news }}</div>
+    <div class="stat-pct" id="stat-real-pct">{% if stats.real_news or stats.fake_news %}{{ stats.real_pct }}% of labelled{% else %}—{% endif %}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Fake News Detected</div>
+    <div class="stat-value" id="stat-fake">{{ stats.fake_news }}</div>
+    <div class="stat-pct" id="stat-fake-pct">{% if stats.real_news or stats.fake_news %}{{ stats.fake_pct }}% of labelled{% else %}—{% endif %}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Positive Sentiment</div>
+    <div class="stat-value" id="stat-positive">{{ stats.positive }}</div>
+    <div class="stat-pct" id="stat-positive-pct">{% if stats.positive or stats.negative or stats.neutral %}{{ stats.positive_pct }}%{% else %}—{% endif %}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Negative Sentiment</div>
+    <div class="stat-value" id="stat-negative">{{ stats.negative }}</div>
+    <div class="stat-pct" id="stat-negative-pct">{% if stats.positive or stats.negative or stats.neutral %}{{ stats.negative_pct }}%{% else %}—{% endif %}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Neutral Sentiment</div>
+    <div class="stat-value" id="stat-neutral">{{ stats.neutral }}</div>
+    <div class="stat-pct" id="stat-neutral-pct">{% if stats.positive or stats.negative or stats.neutral %}{{ stats.neutral_pct }}%{% else %}—{% endif %}</div>
+  </div>
+</div>
+
+<!-- Charts -->
+<div class="charts-grid">
+  <div class="card chart-card">
+    <div class="card-header">
+      <h2 class="card-title">Fake vs Real News</h2>
+    </div>
+    <div class="card-body">
+      <div class="chart-container">
+        <canvas id="chartFakeReal"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="card chart-card">
+    <div class="card-header">
+      <h2 class="card-title">Sentiment Distribution</h2>
+    </div>
+    <div class="card-body">
+      <div class="chart-container">
+        <canvas id="chartSentiment"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="card chart-card">
+    <div class="card-header">
+      <h2 class="card-title">Daily Analysis Activity</h2>
+    </div>
+    <div class="card-body">
+      <div class="chart-container">
+        <canvas id="chartDaily"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="card chart-card">
+    <div class="card-header">
+      <h2 class="card-title">Model Usage</h2>
+    </div>
+    <div class="card-body">
+      <div class="chart-container">
+        <canvas id="chartModels"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="card mb-6">
+  <div class="card-header">
+    <h2 class="card-title">Quick Actions</h2>
+  </div>
+  <div class="card-body">
+    <div class="feature-grid">
+      <a href="{% url 'detector:index' %}" class="feature-card" style="text-decoration:none;">
+        <div class="feature-icon">
+          <i data-lucide="shield-alert" style="width:20px;height:20px;"></i>
+        </div>
+        <h3>Detect Fake News</h3>
+        <p>Classify a news article as real or potentially fake.</p>
+      </a>
+      <a href="{% url 'sentiment:index' %}" class="feature-card" style="text-decoration:none;">
+        <div class="feature-icon">
+          <i data-lucide="message-square-text" style="width:20px;height:20px;"></i>
+        </div>
+        <h3>Analyse Sentiment</h3>
+        <p>Determine the emotional polarity of news text.</p>
+      </a>
+      <a href="{% url 'combined_analysis:index' %}" class="feature-card" style="text-decoration:none;">
+        <div class="feature-icon">
+          <i data-lucide="git-merge" style="width:20px;height:20px;"></i>
+        </div>
+        <h3>Perform Combined Analysis</h3>
+        <p>Run both detection and sentiment on the same text.</p>
+      </a>
+      <a href="{% url 'history:index' %}" class="feature-card" style="text-decoration:none;">
+        <div class="feature-icon">
+          <i data-lucide="history" style="width:20px;height:20px;"></i>
+        </div>
+        <h3>View Analysis History</h3>
+        <p>Browse and review all past analysis records.</p>
+      </a>
+      <a href="{% url 'analytics:index' %}" class="feature-card" style="text-decoration:none;">
+        <div class="feature-icon">
+          <i data-lucide="bar-chart-3" style="width:20px;height:20px;"></i>
+        </div>
+        <h3>View Model Performance</h3>
+        <p>Reports, usage trends and model analytics.</p>
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- Recent Analyses -->
+<div class="card">
+  <div class="card-header">
+    <h2 class="card-title">Recent Analysis Activity</h2>
+    {% if recent %}
+      <a href="{% url 'history:index' %}" class="btn btn-ghost btn-sm">View All</a>
+    {% endif %}
+  </div>
+  <div class="card-body" style="padding: 0;">
+    {% if recent %}
+      <div class="table-wrapper">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>News / Headline</th>
+              <th>Fake / Real</th>
+              <th>Sentiment</th>
+              <th>Type</th>
+              <th>Date</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="recentTableBody">
+            {% for item in recent %}
+            <tr>
+              <td style="max-width: 280px;">
+                <span title="{{ item.text|truncatechars:200 }}">{{ item.short_text }}</span>
+              </td>
+              <td>
+                {% if item.fake_label == 'real' %}
+                  <span class="badge badge-real">Real</span>
+                {% elif item.fake_label == 'fake' %}
+                  <span class="badge badge-fake">Fake</span>
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if item.sentiment_label == 'positive' %}
+                  <span class="badge badge-positive">Positive</span>
+                {% elif item.sentiment_label == 'negative' %}
+                  <span class="badge badge-negative">Negative</span>
+                {% elif item.sentiment_label == 'neutral' %}
+                  <span class="badge badge-neutral">Neutral</span>
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+              </td>
+              <td>
+                <span class="badge badge-default type-badge">{{ item.get_analysis_type_display }}</span>
+              </td>
+              <td class="text-sm text-muted" style="white-space: nowrap;">
+                {{ item.created_at|date:"M d, Y H:i" }}
+              </td>
+              <td>
+                <a href="{% url 'history:detail' item.id %}" class="btn btn-ghost btn-sm">View</a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state" id="recentEmpty">
+        <div class="empty-state-icon">
+          <i data-lucide="inbox" style="width:48px;height:48px;"></i>
+        </div>
+        <div class="empty-state-title">No analyses yet</div>
+        <div class="empty-state-text">Start by analyzing a news article. Results will appear here and feed the charts above.</div>
+        <a href="{% url 'detector:index' %}" class="btn btn-primary btn-sm">Analyze News</a>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  Chart.defaults.font.family = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+  Chart.defaults.font.size = 12;
+  Chart.defaults.color = '#737373';
+  Chart.defaults.plugins.legend.labels.usePointStyle = true;
+  Chart.defaults.plugins.legend.labels.padding = 14;
+
+  const COLORS = {
+    real: '#16a34a',
+    fake: '#dc2626',
+    positive: '#16a34a',
+    negative: '#dc2626',
+    neutral: '#a3a3a3',
+    line: '#171717',
+    lineFill: 'rgba(23, 23, 23, 0.06)',
+    models: ['#171717', '#525252', '#737373', '#a3a3a3', '#d4d4d4'],
+  };
+
+  const dataFakeReal = {{ chart_fake_real_json|safe }};
+  const dataSentiment = {{ chart_sentiment_json|safe }};
+  const dataDaily = {{ chart_daily_json|safe }};
+  const dataModels = {{ chart_models_json|safe }};
+
+  // --- Chart instances ---
+  let chartFakeReal, chartSentiment, chartDaily, chartModels;
+
+  function createDoughnut(canvasId, labels, values, colors) {
+    const ctx = document.getElementById(canvasId);
+    if (!ctx) return null;
+    const hasData = values.some(function (v) { return v > 0; });
+    return new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: hasData ? values : [1],
+          backgroundColor: hasData ? colors : ['#e5e5e5'],
+          borderWidth: 0,
+          hoverOffset: 4,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '62%',
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { boxWidth: 10, boxHeight: 10 },
+          },
+          tooltip: {
+            enabled: hasData,
+            callbacks: {
+              label: function (ctx) {
+                const total = ctx.dataset.data.reduce(function (a, b) { return a + b; }, 0);
+                const pct = total ? ((ctx.raw / total) * 100).toFixed(1) : 0;
+                return ' ' + ctx.label + ': ' + ctx.raw + ' (' + pct + '%)';
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  function createLine(canvasId, labels, values) {
+    const ctx = document.getElementById(canvasId);
+    if (!ctx) return null;
+    return new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Analyses',
+          data: values,
+          borderColor: COLORS.line,
+          backgroundColor: COLORS.lineFill,
+          borderWidth: 2,
+          fill: true,
+          tension: 0.3,
+          pointRadius: 3,
+          pointBackgroundColor: COLORS.line,
+          pointHoverRadius: 5,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: {
+            grid: { display: false },
+            ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 8 },
+          },
+          y: {
+            beginAtZero: true,
+            ticks: { precision: 0 },
+            grid: { color: '#f5f5f5' },
+          },
+        },
+        plugins: {
+          legend: { display: false },
+        },
+      },
+    });
+  }
+
+  function createBar(canvasId, labels, values) {
+    const ctx = document.getElementById(canvasId);
+    if (!ctx) return null;
+    return new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Predictions',
+          data: values,
+          backgroundColor: COLORS.models.slice(0, labels.length),
+          borderRadius: 4,
+          borderSkipped: false,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: {
+            grid: { display: false },
+          },
+          y: {
+            beginAtZero: true,
+            ticks: { precision: 0 },
+            grid: { color: '#f5f5f5' },
+          },
+        },
+        plugins: {
+          legend: { display: false },
+        },
+      },
+    });
+  }
+
+  // Initialise charts
+  chartFakeReal = createDoughnut(
+    'chartFakeReal',
+    dataFakeReal.labels,
+    dataFakeReal.values,
+    [COLORS.real, COLORS.fake]
+  );
+  chartSentiment = createDoughnut(
+    'chartSentiment',
+    dataSentiment.labels,
+    dataSentiment.values,
+    [COLORS.positive, COLORS.negative, COLORS.neutral]
+  );
+  chartDaily = createLine('chartDaily', dataDaily.labels, dataDaily.values);
+  chartModels = createBar('chartModels', dataModels.labels, dataModels.values);
+
+  // --- Update helpers ---
+  function updateStats(stats) {
+    document.getElementById('stat-total').textContent = stats.total_news;
+    document.getElementById('stat-real').textContent = stats.real_news;
+    document.getElementById('stat-fake').textContent = stats.fake_news;
+    document.getElementById('stat-positive').textContent = stats.positive;
+    document.getElementById('stat-negative').textContent = stats.negative;
+    document.getElementById('stat-neutral').textContent = stats.neutral;
+
+    var labelled = stats.real_news + stats.fake_news;
+    document.getElementById('stat-real-pct').textContent =
+      labelled ? stats.real_pct + '% of labelled' : '—';
+    document.getElementById('stat-fake-pct').textContent =
+      labelled ? stats.fake_pct + '% of labelled' : '—';
+
+    var sentTotal = stats.positive + stats.negative + stats.neutral;
+    document.getElementById('stat-positive-pct').textContent =
+      sentTotal ? stats.positive_pct + '%' : '—';
+    document.getElementById('stat-negative-pct').textContent =
+      sentTotal ? stats.negative_pct + '%' : '—';
+    document.getElementById('stat-neutral-pct').textContent =
+      sentTotal ? stats.neutral_pct + '%' : '—';
+
+    var meta = document.getElementById('stat-total-meta');
+    if (stats.has_data) {
+      meta.textContent =
+        stats.type_fake_news + ' detection · ' +
+        stats.type_sentiment + ' sentiment · ' +
+        stats.type_combined + ' combined';
+    } else {
+      meta.textContent = 'All time';
+    }
+
+    var ts = document.getElementById('latestTs');
+    if (stats.latest_at) {
+      var d = new Date(stats.latest_at);
+      ts.textContent = 'Latest analysis: ' + d.toLocaleString(undefined, {
+        month: 'short', day: 'numeric', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      });
+    } else {
+      ts.textContent = 'No analyses yet';
+    }
+  }
+
+  function updateDoughnut(chart, labels, values, colors) {
+    if (!chart) return;
+    var hasData = values.some(function (v) { return v > 0; });
+    chart.data.labels = labels;
+    chart.data.datasets[0].data = hasData ? values : [1];
+    chart.data.datasets[0].backgroundColor = hasData ? colors : ['#e5e5e5'];
+    chart.options.plugins.tooltip.enabled = hasData;
+    chart.update();
+  }
+
+  function updateLine(chart, labels, values) {
+    if (!chart) return;
+    chart.data.labels = labels;
+    chart.data.datasets[0].data = values;
+    chart.update();
+  }
+
+  function updateBar(chart, labels, values) {
+    if (!chart) return;
+    chart.data.labels = labels;
+    chart.data.datasets[0].data = values;
+    chart.data.datasets[0].backgroundColor = COLORS.models.slice(0, labels.length);
+    chart.update();
+  }
+
+  // Refresh button
+  var refreshBtn = document.getElementById('refreshBtn');
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', function () {
+      refreshBtn.classList.add('refresh-spinning');
+      var params = new URLSearchParams();
+      var from = document.getElementById('filter_from').value;
+      var to = document.getElementById('filter_to').value;
+      if (from) params.set('from', from);
+      if (to) params.set('to', to);
+
+      fetch('{% url "dashboard:api" %}?' + params.toString())
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          updateStats(data.stats);
+          updateDoughnut(chartFakeReal, data.charts.fake_real.labels, data.charts.fake_real.values, [COLORS.real, COLORS.fake]);
+          updateDoughnut(chartSentiment, data.charts.sentiment.labels, data.charts.sentiment.values, [COLORS.positive, COLORS.negative, COLORS.neutral]);
+          updateLine(chartDaily, data.charts.daily.labels, data.charts.daily.values);
+          updateBar(chartModels, data.charts.models.labels, data.charts.models.values);
+        })
+        .catch(function (err) {
+          console.error('Refresh failed', err);
+        })
+        .finally(function () {
+          refreshBtn.classList.remove('refresh-spinning');
+        });
+    });
+  }
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,197 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Text Preprocessing Demo{% endblock %}
+
+{% block extra_css %}
+<style>
+  .token-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+  }
+  .token-chip {
+    display: inline-block;
+    padding: 0.2rem 0.5rem;
+    background: var(--color-gray-100);
+    border-radius: 4px;
+    font-size: 0.8125rem;
+    font-family: var(--font-mono);
+    color: var(--color-gray-800);
+  }
+  .step-badge {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    background: var(--color-gray-900);
+    color: white;
+    border-radius: 9999px;
+    font-size: 0.6875rem;
+    margin: 0.125rem;
+  }
+  .config-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 0.5rem 1rem;
+  }
+  .config-grid label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8125rem;
+    cursor: pointer;
+  }
+  .result-block {
+    margin-bottom: 1.25rem;
+  }
+  .result-block h3 {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--color-gray-500);
+    margin-bottom: 0.375rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .result-text {
+    font-size: 0.875rem;
+    line-height: 1.6;
+    color: var(--color-gray-800);
+    background: var(--color-gray-50);
+    padding: 0.75rem 1rem;
+    border-radius: var(--border-radius-sm);
+    border: 1px solid var(--color-gray-200);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+{% csrf_token %}
+<div class="mb-6">
+  <p class="text-muted text-sm">Enter sample news text and inspect each stage of the NLP preprocessing pipeline.</p>
+</div>
+
+<div class="grid" style="grid-template-columns:1fr 1fr;gap:1.5rem;">
+  <!-- Input -->
+  <div>
+    <div class="card mb-4">
+      <div class="card-header"><h2 class="card-title">Input Text</h2></div>
+      <div class="card-body">
+        <textarea id="inputText" class="form-control" rows="8"
+          placeholder="Paste a news headline or article snippet here…">This is NOT a great product!!! Visit https://example.com for &lt;b&gt;details&lt;/b&gt;. The company never disclosed the real numbers in 2023.</textarea>
+      </div>
+    </div>
+
+    <div class="card mb-4">
+      <div class="card-header"><h2 class="card-title">Preprocessing Options</h2></div>
+      <div class="card-body">
+        <div class="config-grid" id="configGrid">
+          <label><input type="checkbox" data-key="lowercase" checked> Lowercase</label>
+          <label><input type="checkbox" data-key="remove_urls" checked> Remove URLs</label>
+          <label><input type="checkbox" data-key="remove_html" checked> Remove HTML</label>
+          <label><input type="checkbox" data-key="remove_special_chars" checked> Special chars</label>
+          <label><input type="checkbox" data-key="normalize_whitespace" checked> Normalize spaces</label>
+          <label><input type="checkbox" data-key="tokenize" checked> Tokenize</label>
+          <label><input type="checkbox" data-key="remove_stopwords" checked> Remove stopwords</label>
+          <label><input type="checkbox" data-key="preserve_negation" checked> Preserve negation</label>
+          <label><input type="checkbox" data-key="stem"> Stemming (Porter)</label>
+          <label><input type="checkbox" data-key="lemmatize" checked> Lemmatization</label>
+        </div>
+        <button type="button" class="btn btn-primary mt-4" id="runBtn">
+          <i data-lucide="wand-2" style="width:16px;height:16px;"></i>
+          Preprocess Text
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Results</h2>
+      <span class="text-xs text-muted" id="countInfo"></span>
+    </div>
+    <div class="card-body" id="resultsPanel">
+      <div class="empty-state" style="padding:2rem;">
+        <div class="empty-state-icon">
+          <i data-lucide="text" style="width:40px;height:40px;"></i>
+        </div>
+        <div class="empty-state-title">No result yet</div>
+        <div class="empty-state-text">Click “Preprocess Text” to see cleaned text, tokens, stems and lemmas.</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  function getConfig() {
+    var cfg = {};
+    document.querySelectorAll('#configGrid input[data-key]').forEach(function (el) {
+      cfg[el.getAttribute('data-key')] = el.checked;
+    });
+    cfg.min_token_length = 1;
+    return cfg;
+  }
+
+  function chips(tokens) {
+    if (!tokens || !tokens.length) return '<span class="text-muted text-sm">—</span>';
+    return '<div class="token-list">' + tokens.map(function (t) {
+      return '<span class="token-chip">' + escapeHtml(t) + '</span>';
+    }).join('') + '</div>';
+  }
+
+  function escapeHtml(s) {
+    var d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  function render(data) {
+    var steps = (data.steps_applied || []).map(function (s) {
+      return '<span class="step-badge">' + s + '</span>';
+    }).join('');
+
+    document.getElementById('countInfo').textContent =
+      data.word_count_before + ' → ' + data.word_count_after + ' tokens';
+
+    document.getElementById('resultsPanel').innerHTML =
+      '<div class="result-block"><h3>Steps Applied</h3><div>' + (steps || '—') + '</div></div>' +
+      '<div class="result-block"><h3>Original</h3><div class="result-text">' + escapeHtml(data.original) + '</div></div>' +
+      '<div class="result-block"><h3>Cleaned Text</h3><div class="result-text">' + escapeHtml(data.cleaned) + '</div></div>' +
+      '<div class="result-block"><h3>Tokens</h3>' + chips(data.tokens) + '</div>' +
+      '<div class="result-block"><h3>Stemmed</h3>' + chips(data.stemmed) + '</div>' +
+      '<div class="result-block"><h3>Lemmatized</h3>' + chips(data.lemmatized) + '</div>' +
+      '<div class="result-block"><h3>Final Tokens</h3>' + chips(data.final_tokens) + '</div>' +
+      '<div class="result-block"><h3>Final Text</h3><div class="result-text">' + escapeHtml(data.final_text) + '</div></div>';
+  }
+
+  document.getElementById('runBtn').addEventListener('click', function () {
+    var btn = this;
+    btn.disabled = true;
+    var text = document.getElementById('inputText').value;
+
+    fetch('{% url "ml_engine:preprocess_api" %}', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': '{{ csrf_token }}',
+      },
+      body: JSON.stringify({ text: text, config: getConfig() }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        render(data);
+        if (window.lucide) lucide.createIcons();
+      })
+      .catch(function (err) {
+        document.getElementById('resultsPanel').innerHTML =
+          '<div class="alert alert-error">Error: ' + escapeHtml(String(err)) + '</div>';
+      })
+      .finally(function () { btn.disabled = false; });
+  });
+})();
+</script>
+{% endblock %}

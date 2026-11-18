@@ -1,0 +1,350 @@
+{% extends 'base.html' %}
+
+{% block title %}Analysis History{% endblock %}
+
+{% block extra_css %}
+<style>
+  .filter-bar {
+    display: grid;
+    grid-template-columns: 1.4fr repeat(4, 1fr) auto;
+    gap: 0.75rem;
+    align-items: end;
+  }
+  @media (max-width: 1100px) {
+    .filter-bar { grid-template-columns: 1fr 1fr; }
+  }
+  .date-row {
+    display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: end;
+  }
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+    display: none; align-items: center; justify-content: center; z-index: 1000;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal-box {
+    background: #fff; border-radius: 12px; padding: 1.5rem;
+    max-width: 420px; width: 90%; box-shadow: var(--shadow-md);
+  }
+  .modal-box h3 { margin-bottom: 0.5rem; }
+  .modal-actions { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1.25rem; }
+  @media print {
+    .sidebar, .topbar, .no-print, .filter-card { display: none !important; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mb-4 flex items-center justify-between" style="flex-wrap: wrap; gap: 0.75rem;">
+  <p class="text-muted text-sm">
+    {% if total_count %}
+      {{ total_count }} analysis record{{ total_count|pluralize }}
+      {% if filters.q or filters.type or filters.fake or filters.sentiment or filters.model or filters.from or filters.to %}
+        <span class="text-muted">(filtered)</span>
+      {% endif %}
+    {% else %}
+      No analysis records match the current filters.
+    {% endif %}
+  </p>
+  <div class="flex gap-2 no-print" style="flex-wrap: wrap;">
+    <a href="{% url 'dashboard:index' %}" class="btn btn-ghost btn-sm">
+      <i data-lucide="layout-dashboard" style="width:14px;height:14px;"></i> Dashboard
+    </a>
+    {% if total_count %}
+    <a href="{% url 'history:export_list' %}?{{ query_string }}" class="btn btn-secondary btn-sm">
+      <i data-lucide="download" style="width:14px;height:14px;"></i> Export CSV
+    </a>
+    <button type="button" class="btn btn-secondary btn-sm" id="btn-delete-all"
+            style="color: var(--color-error);">
+      <i data-lucide="trash-2" style="width:14px;height:14px;"></i> Delete All
+    </button>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4 filter-card no-print">
+  <div class="card-body">
+    <form method="get" id="filter-form">
+      <div class="filter-bar mb-3">
+        <div class="form-group" style="margin:0;">
+          <label class="form-label" for="q">Search</label>
+          <input type="search" id="q" name="q" class="form-control"
+                 value="{{ filters.q }}"
+                 placeholder="Headline, content, or ID…">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label class="form-label" for="type">Type</label>
+          <select name="type" id="type" class="form-control">
+            <option value="">All types</option>
+            <option value="fake_news" {% if filters.type == 'fake_news' %}selected{% endif %}>Fake News</option>
+            <option value="sentiment" {% if filters.type == 'sentiment' %}selected{% endif %}>Sentiment</option>
+            <option value="combined" {% if filters.type == 'combined' %}selected{% endif %}>Combined</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label class="form-label" for="fake">Fake / Real</label>
+          <select name="fake" id="fake" class="form-control">
+            <option value="">Any</option>
+            <option value="real" {% if filters.fake == 'real' %}selected{% endif %}>Real</option>
+            <option value="fake" {% if filters.fake == 'fake' %}selected{% endif %}>Fake</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label class="form-label" for="sentiment">Sentiment</label>
+          <select name="sentiment" id="sentiment" class="form-control">
+            <option value="">Any</option>
+            <option value="positive" {% if filters.sentiment == 'positive' %}selected{% endif %}>Positive</option>
+            <option value="negative" {% if filters.sentiment == 'negative' %}selected{% endif %}>Negative</option>
+            <option value="neutral" {% if filters.sentiment == 'neutral' %}selected{% endif %}>Neutral</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label class="form-label" for="model">Model</label>
+          <select name="model" id="model" class="form-control">
+            <option value="">Any model</option>
+            {% for m in model_values %}
+              <option value="{{ m }}" {% if filters.model == m %}selected{% endif %}>{{ m }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label class="form-label" for="sort">Sort</label>
+          <select name="sort" id="sort" class="form-control">
+            {% for val, label in sort_options %}
+              <option value="{{ val }}" {% if filters.sort == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="date-row">
+        <div class="form-group" style="margin:0;">
+          <label class="form-label" for="from">From</label>
+          <input type="date" id="from" name="from" class="form-control" value="{{ filters.from }}">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label class="form-label" for="to">To</label>
+          <input type="date" id="to" name="to" class="form-control" value="{{ filters.to }}">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label class="form-label" for="page_size">Page size</label>
+          <select name="page_size" id="page_size" class="form-control" style="min-width: 90px;">
+            {% for s in page_size_options %}
+              <option value="{{ s }}" {% if page_size == s %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm">
+          <i data-lucide="filter" style="width:14px;height:14px;"></i> Apply
+        </button>
+        <a href="{% url 'history:index' %}" class="btn btn-ghost btn-sm">Clear</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Table -->
+<div class="card">
+  <div class="card-body" style="padding: 0;">
+    {% if page_obj.object_list %}
+      <div class="table-wrapper">
+        <table class="table">
+          <thead>
+            <tr>
+              <th style="width: 56px;">ID</th>
+              <th>Headline</th>
+              <th>Type</th>
+              <th>Fake / Real</th>
+              <th>Sentiment</th>
+              <th>Model</th>
+              <th>Date</th>
+              <th class="no-print" style="width: 140px;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in page_obj %}
+            <tr>
+              <td class="text-muted text-sm">#{{ item.id }}</td>
+              <td style="max-width: 260px;">
+                <a href="{% url 'history:detail' item.id %}" title="{{ item.text|truncatechars:200 }}">
+                  {{ item.short_text }}
+                </a>
+              </td>
+              <td>
+                <span class="badge badge-default" style="font-size:0.6875rem;text-transform:uppercase;">
+                  {{ item.get_analysis_type_display }}
+                </span>
+              </td>
+              <td>
+                {% if item.fake_label == 'real' %}
+                  <span class="badge badge-success">Real</span>
+                {% elif item.fake_label == 'fake' %}
+                  <span class="badge badge-error">Fake</span>
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if item.sentiment_label %}
+                  <span class="badge badge-default">{{ item.get_sentiment_label_display }}</span>
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+              </td>
+              <td class="text-sm" style="max-width: 160px;" title="{{ item.models_display }}">
+                {{ item.models_display|truncatechars:28 }}
+              </td>
+              <td class="text-sm text-muted" style="white-space: nowrap;">
+                {{ item.created_at|date:"M d, Y H:i" }}
+              </td>
+              <td class="no-print">
+                <div class="flex gap-1">
+                  <a href="{% url 'history:detail' item.id %}" class="btn btn-ghost btn-sm" title="View">
+                    <i data-lucide="eye" style="width:14px;height:14px;"></i>
+                  </a>
+                  <a href="{% url 'history:export' item.id %}?format=json" class="btn btn-ghost btn-sm" title="Export">
+                    <i data-lucide="download" style="width:14px;height:14px;"></i>
+                  </a>
+                  <button type="button" class="btn btn-ghost btn-sm btn-delete-one"
+                          data-id="{{ item.id }}" data-label="{{ item.short_text|escape }}"
+                          title="Delete" style="color: var(--color-error);">
+                    <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      {% if page_obj.has_other_pages or page_obj.paginator.num_pages >= 1 %}
+      <div class="card-footer flex items-center justify-between" style="flex-wrap: wrap; gap: 0.5rem;">
+        <span class="text-sm text-muted">
+          Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+          · {{ total_count }} total
+        </span>
+        <div class="pagination">
+          {% if page_obj.has_previous %}
+            <a class="pagination-btn" href="?page={{ page_obj.previous_page_number }}&page_size={{ page_size }}&{{ query_string }}">‹ Prev</a>
+          {% endif %}
+          {% for num in page_obj.paginator.page_range %}
+            {% if page_obj.number == num %}
+              <span class="pagination-btn active">{{ num }}</span>
+            {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
+              <a class="pagination-btn" href="?page={{ num }}&page_size={{ page_size }}&{{ query_string }}">{{ num }}</a>
+            {% endif %}
+          {% endfor %}
+          {% if page_obj.has_next %}
+            <a class="pagination-btn" href="?page={{ page_obj.next_page_number }}&page_size={{ page_size }}&{{ query_string }}">Next ›</a>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+
+    {% else %}
+      <div class="empty-state">
+        <div class="empty-state-icon">
+          <i data-lucide="history" style="width:48px;height:48px;"></i>
+        </div>
+        <div class="empty-state-title">
+          {% if filters.q or filters.type or filters.fake or filters.sentiment or filters.model or filters.from or filters.to %}
+            No matching records
+          {% else %}
+            No analysis history yet
+          {% endif %}
+        </div>
+        <div class="empty-state-text">
+          {% if filters.q or filters.type or filters.fake or filters.sentiment or filters.model or filters.from or filters.to %}
+            Try clearing filters or adjusting the search query.
+          {% else %}
+            Run Fake News Detection, Sentiment Analysis, or Combined Analysis to populate history.
+          {% endif %}
+        </div>
+        <div class="mt-4 flex gap-2" style="justify-content:center;">
+          <a href="{% url 'detector:index' %}" class="btn btn-secondary btn-sm">Detect Fake News</a>
+          <a href="{% url 'sentiment:index' %}" class="btn btn-secondary btn-sm">Analyse Sentiment</a>
+          <a href="{% url 'combined_analysis:index' %}" class="btn btn-secondary btn-sm">Combined Analysis</a>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Delete one modal -->
+<div class="modal-backdrop" id="modal-delete-one">
+  <div class="modal-box">
+    <h3>Delete analysis?</h3>
+    <p class="text-sm text-muted mb-2">This will permanently remove the record from the database.</p>
+    <p class="text-sm" id="delete-one-label"></p>
+    <form method="post" id="form-delete-one" action="">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" data-close-modal>Cancel</button>
+        <button type="submit" class="btn btn-primary" style="background:var(--color-error);border-color:var(--color-error);">Delete</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Delete all modal -->
+<div class="modal-backdrop" id="modal-delete-all">
+  <div class="modal-box">
+    <h3>Delete all history?</h3>
+    <p class="text-sm text-muted mb-3">
+      This permanently deletes <strong>all</strong> analysis records. Dashboard statistics will reset.
+      Type <code>delete all</code> to confirm.
+    </p>
+    <form method="post" action="{% url 'history:delete_all' %}">
+      {% csrf_token %}
+      <div class="form-group">
+        <input type="text" name="confirm" class="form-control" placeholder="delete all" autocomplete="off" required>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" data-close-modal>Cancel</button>
+        <button type="submit" class="btn btn-primary" style="background:var(--color-error);border-color:var(--color-error);">Delete All</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  function openModal(id) {
+    document.getElementById(id).classList.add('open');
+  }
+  function closeModals() {
+    document.querySelectorAll('.modal-backdrop').forEach(function (el) {
+      el.classList.remove('open');
+    });
+  }
+  document.querySelectorAll('[data-close-modal]').forEach(function (btn) {
+    btn.addEventListener('click', closeModals);
+  });
+  document.querySelectorAll('.modal-backdrop').forEach(function (el) {
+    el.addEventListener('click', function (e) {
+      if (e.target === el) closeModals();
+    });
+  });
+
+  document.querySelectorAll('.btn-delete-one').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var id = btn.getAttribute('data-id');
+      var label = btn.getAttribute('data-label') || ('#' + id);
+      document.getElementById('delete-one-label').textContent = 'Analysis #' + id + ' — ' + label;
+      document.getElementById('form-delete-one').action = '/history/' + id + '/delete/';
+      openModal('modal-delete-one');
+    });
+  });
+
+  var delAll = document.getElementById('btn-delete-all');
+  if (delAll) {
+    delAll.addEventListener('click', function () {
+      openModal('modal-delete-all');
+    });
+  }
+})();
+</script>
+{% endblock %}

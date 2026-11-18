@@ -1,0 +1,22 @@
+<header class="topbar">
+  <button class="topbar-mobile-toggle" id="mobileSidebarToggle" aria-label="Open menu" type="button">
+    <i data-lucide="menu" style="width:20px;height:20px;"></i>
+  </button>
+
+  <div class="flex items-center gap-3" style="flex:1; min-width:0;">
+    <h1 class="topbar-title">{{ page_title|default:"Dashboard" }}</h1>
+    {% if breadcrumbs %}
+    <nav class="breadcrumbs" aria-label="Breadcrumb">
+      <a href="{% url 'dashboard:index' %}">Home</a>
+      {% for crumb in breadcrumbs %}
+        <span class="breadcrumb-separator">/</span>
+        {% if crumb.url %}
+          <a href="{{ crumb.url }}">{{ crumb.name }}</a>
+        {% else %}
+          <span>{{ crumb.name }}</span>
+        {% endif %}
+      {% endfor %}
+    </nav>
+    {% endif %}
+  </div>
+</header>

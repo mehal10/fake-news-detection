@@ -1,0 +1,438 @@
+{% extends 'base.html' %}
+
+{% block title %}Combined Analysis{% endblock %}
+
+{% block extra_css %}
+<style>
+  .result-verdict {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    padding: 0.5rem 1rem; border-radius: 8px; font-weight: 700; font-size: 1.125rem;
+  }
+  .verdict-real { background: var(--color-success-bg); color: var(--color-success); }
+  .verdict-fake { background: var(--color-error-bg); color: var(--color-error); }
+  .verdict-positive { background: var(--color-success-bg); color: var(--color-success); }
+  .verdict-negative { background: var(--color-error-bg); color: var(--color-error); }
+  .verdict-neutral { background: var(--color-gray-100); color: var(--color-gray-700); }
+  .prob-bar { height: 8px; background: var(--color-gray-200); border-radius: 4px; overflow: hidden; margin-top: 0.25rem; }
+  .prob-fill { height: 100%; border-radius: 4px; }
+  .disclaimer {
+    font-size: 0.8125rem; color: var(--color-gray-500);
+    border-left: 3px solid var(--color-gray-300); padding-left: 0.75rem;
+    margin-top: 1rem; line-height: 1.5;
+  }
+  .chart-box { position: relative; height: 180px; max-width: 200px; margin: 0 auto; }
+  .combo-badge {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    padding: 0.4rem 0.85rem; border-radius: 999px;
+    background: var(--color-gray-900); color: #fff; font-weight: 600; font-size: 0.9rem;
+  }
+  .panel-error {
+    padding: 1rem; border-radius: 8px; background: var(--color-warning-bg);
+    color: var(--color-gray-800); font-size: 0.875rem;
+  }
+  .summary-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 0.75rem 1.25rem; font-size: 0.875rem;
+  }
+  .summary-grid dt { color: var(--color-gray-500); }
+  .summary-grid dd { font-weight: 600; margin: 0; }
+  @media (max-width: 900px) {
+    .combined-layout { grid-template-columns: 1fr !important; }
+    .results-two-col { grid-template-columns: 1fr !important; }
+  }
+  @media print {
+    .sidebar, .topbar, .no-print { display: none !important; }
+    .main-content { margin: 0 !important; padding: 0 !important; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+  <p class="text-muted text-sm">
+    Run fake news detection and sentiment analysis together on a single news article.
+    Each model runs independently; a missing model does not block the other panel.
+  </p>
+</div>
+
+{% if not active_fake and not fake_models %}
+<div class="alert alert-warning mb-4">
+  <strong>No trained fake-news models.</strong>
+  <a href="{% url 'ml_engine:model_training' %}">Train a fake-news model</a> to enable Panel A.
+</div>
+{% endif %}
+{% if not active_sentiment and not sentiment_models %}
+<div class="alert alert-warning mb-4">
+  <strong>No trained sentiment models.</strong>
+  <a href="{% url 'ml_engine:model_training' %}?task=sentiment">Train a sentiment model</a> to enable Panel B.
+</div>
+{% endif %}
+
+<div class="grid combined-layout" style="grid-template-columns: 1fr 1.2fr; gap: 1.5rem;">
+  <!-- Input -->
+  <div class="card no-print">
+    <div class="card-header"><h2 class="card-title">News Input</h2></div>
+    <div class="card-body">
+      <form method="post" enctype="multipart/form-data" id="combined-form">
+        {% csrf_token %}
+        <div class="form-group">
+          <label class="form-label" for="headline">News Headline</label>
+          <input type="text" id="headline" name="headline" class="form-control"
+                 value="{{ form.headline }}" placeholder="Optional headline">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="content">News Content</label>
+          <textarea id="content" name="content" class="form-control" rows="10"
+                    placeholder="Paste the full news article text here…">{{ form.content }}</textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="txt_file">Or upload a .txt file</label>
+          <input type="file" id="txt_file" name="txt_file" class="form-control" accept=".txt">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="fake_model_id">Fake News Model</label>
+          <select name="fake_model_id" id="fake_model_id" class="form-control">
+            {% for m in fake_models %}
+              <option value="{{ m.model_id }}"
+                {% if form.fake_model_id == m.model_id or not form.fake_model_id and m.is_active %}selected{% endif %}>
+                {{ m.name }}{% if m.is_active %} ★{% endif %}
+              </option>
+            {% empty %}
+              <option value="">No fake-news models</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="sentiment_model_id">Sentiment Model</label>
+          <select name="sentiment_model_id" id="sentiment_model_id" class="form-control">
+            {% for m in sentiment_models %}
+              <option value="{{ m.model_id }}"
+                {% if form.sentiment_model_id == m.model_id or not form.sentiment_model_id and m.is_active %}selected{% endif %}>
+                {{ m.name }}{% if m.is_active %} ★{% endif %}
+              </option>
+            {% empty %}
+              <option value="">No sentiment models</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="flex gap-2" style="flex-wrap: wrap;">
+          <button type="submit" name="action" value="analyse" class="btn btn-primary"
+                  id="btn-analyse"
+                  {% if not fake_models and not sentiment_models %}disabled{% endif %}>
+            <i data-lucide="git-merge" style="width:16px;height:16px;"></i>
+            Analyse News
+          </button>
+          <button type="submit" name="action" value="clear" class="btn btn-secondary">Clear</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Results column -->
+  <div>
+    {% if result %}
+      <!-- Summary -->
+      <div class="card mb-4" id="results-summary">
+        <div class="card-header">
+          <h2 class="card-title">Combined Analysis Summary</h2>
+          {% if result.combination %}
+            <span class="combo-badge">{{ result.combination }}</span>
+          {% endif %}
+        </div>
+        <div class="card-body">
+          {% if result.headline %}
+            <p class="font-semibold mb-3">{{ result.headline }}</p>
+          {% endif %}
+          <dl class="summary-grid">
+            <div>
+              <dt>Fake / Real</dt>
+              <dd>
+                {% if result.overall_fake_label %}
+                  {{ result.overall_fake_label|capfirst }}
+                {% else %}
+                  <span class="text-muted">Unavailable</span>
+                {% endif %}
+              </dd>
+            </div>
+            <div>
+              <dt>Sentiment</dt>
+              <dd>
+                {% if result.overall_sentiment_label %}
+                  {{ result.overall_sentiment_label|capfirst }}
+                {% else %}
+                  <span class="text-muted">Unavailable</span>
+                {% endif %}
+              </dd>
+            </div>
+            <div>
+              <dt>Fake News Model</dt>
+              <dd>{{ result.fake_model_name|default:"—" }}</dd>
+            </div>
+            <div>
+              <dt>Sentiment Model</dt>
+              <dd>{{ result.sentiment_model_name|default:"—" }}</dd>
+            </div>
+            <div>
+              <dt>Processing Time</dt>
+              <dd>{{ result.total_processing_time_sec }} s</dd>
+            </div>
+            <div>
+              <dt>Analysed At</dt>
+              <dd class="text-sm">{{ result.analyzed_at|slice:":19" }} UTC</dd>
+            </div>
+          </dl>
+          <p class="disclaimer">{{ result.message }}</p>
+          <div class="flex gap-2 mt-4 no-print" style="flex-wrap: wrap;">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="window.print()">
+              <i data-lucide="printer" style="width:14px;height:14px;"></i> Print
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-copy">
+              <i data-lucide="copy" style="width:14px;height:14px;"></i> Copy Results
+            </button>
+            {% if saved_id %}
+            <a href="{% url 'history:index' %}?id={{ saved_id }}&type=combined" class="btn btn-secondary btn-sm">
+              <i data-lucide="history" style="width:14px;height:14px;"></i> View in History
+            </a>
+            {% endif %}
+            <a href="{% url 'combined_analysis:index' %}" class="btn btn-ghost btn-sm">
+              Analyse Another Article
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Two panels -->
+      <div class="grid results-two-col" style="grid-template-columns: 1fr 1fr; gap: 1rem;">
+        <!-- PANEL A: Fake News -->
+        <div class="card">
+          <div class="card-header"><h2 class="card-title">Panel A — Fake News Detection</h2></div>
+          <div class="card-body">
+            {% if result.fake_news %}
+              {% with fn=result.fake_news %}
+              <div class="mb-3">
+                {% if fn.label == 'real' %}
+                  <span class="result-verdict verdict-real">
+                    <i data-lucide="shield-check" style="width:22px;height:22px;"></i> Real
+                  </span>
+                {% else %}
+                  <span class="result-verdict verdict-fake">
+                    <i data-lucide="shield-alert" style="width:22px;height:22px;"></i> Fake
+                  </span>
+                {% endif %}
+              </div>
+              <div class="chart-box mb-3">
+                <canvas id="fakeChart"></canvas>
+              </div>
+              <div class="mb-2">
+                <div class="flex justify-between text-sm mb-1">
+                  <span>Real</span>
+                  <span class="font-medium">{{ fn.probabilities.real|default:"0" }}</span>
+                </div>
+                <div class="prob-bar">
+                  <div class="prob-fill" style="width: {% widthratio fn.probabilities.real|default:0 1 100 %}%; background: var(--color-success);"></div>
+                </div>
+              </div>
+              <div class="mb-3">
+                <div class="flex justify-between text-sm mb-1">
+                  <span>Fake</span>
+                  <span class="font-medium">{{ fn.probabilities.fake|default:"0" }}</span>
+                </div>
+                <div class="prob-bar">
+                  <div class="prob-fill" style="width: {% widthratio fn.probabilities.fake|default:0 1 100 %}%; background: var(--color-error);"></div>
+                </div>
+              </div>
+              <p class="text-sm text-muted">
+                Model: <strong>{{ fn.model_name }}</strong><br>
+                Confidence: <strong>{{ fn.confidence }}</strong><br>
+                Time: {{ fn.processing_time_sec }} s
+              </p>
+              {% endwith %}
+            {% elif result.fake_error %}
+              <div class="panel-error">
+                <strong>Fake news model unavailable</strong><br>
+                {{ result.fake_error }}
+              </div>
+            {% else %}
+              <div class="empty-state">
+                <div class="empty-state-text">No fake news result</div>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- PANEL B: Sentiment -->
+        <div class="card">
+          <div class="card-header"><h2 class="card-title">Panel B — Sentiment Analysis</h2></div>
+          <div class="card-body">
+            {% if result.sentiment %}
+              {% with s=result.sentiment %}
+              <div class="mb-3">
+                {% if s.label == 'positive' %}
+                  <span class="result-verdict verdict-positive">
+                    <i data-lucide="smile" style="width:22px;height:22px;"></i> Positive
+                  </span>
+                {% elif s.label == 'negative' %}
+                  <span class="result-verdict verdict-negative">
+                    <i data-lucide="frown" style="width:22px;height:22px;"></i> Negative
+                  </span>
+                {% else %}
+                  <span class="result-verdict verdict-neutral">
+                    <i data-lucide="meh" style="width:22px;height:22px;"></i> Neutral
+                  </span>
+                {% endif %}
+              </div>
+              <div class="chart-box mb-3">
+                <canvas id="sentimentChart"></canvas>
+              </div>
+              <div class="mb-2">
+                <div class="flex justify-between text-sm mb-1"><span>Positive</span>
+                  <span class="font-medium">{{ s.probabilities.positive|default:"0" }}</span></div>
+                <div class="prob-bar">
+                  <div class="prob-fill" style="width:{% widthratio s.probabilities.positive|default:0 1 100 %}%;background:var(--color-success);"></div>
+                </div>
+              </div>
+              <div class="mb-2">
+                <div class="flex justify-between text-sm mb-1"><span>Negative</span>
+                  <span class="font-medium">{{ s.probabilities.negative|default:"0" }}</span></div>
+                <div class="prob-bar">
+                  <div class="prob-fill" style="width:{% widthratio s.probabilities.negative|default:0 1 100 %}%;background:var(--color-error);"></div>
+                </div>
+              </div>
+              <div class="mb-3">
+                <div class="flex justify-between text-sm mb-1"><span>Neutral</span>
+                  <span class="font-medium">{{ s.probabilities.neutral|default:"0" }}</span></div>
+                <div class="prob-bar">
+                  <div class="prob-fill" style="width:{% widthratio s.probabilities.neutral|default:0 1 100 %}%;background:var(--color-gray-500);"></div>
+                </div>
+              </div>
+              <p class="text-sm text-muted">
+                Model: <strong>{{ s.model_name }}</strong><br>
+                Confidence: <strong>{{ s.confidence }}</strong><br>
+                Time: {{ s.processing_time_sec }} s
+              </p>
+              {% endwith %}
+            {% elif result.sentiment_error %}
+              <div class="panel-error">
+                <strong>Sentiment model unavailable</strong><br>
+                {{ result.sentiment_error }}
+              </div>
+            {% else %}
+              <div class="empty-state">
+                <div class="empty-state-text">No sentiment result</div>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+    {% else %}
+      <div class="card">
+        <div class="card-header"><h2 class="card-title">Combined Results</h2></div>
+        <div class="card-body">
+          <div class="empty-state">
+            <div class="empty-state-icon">
+              <i data-lucide="layers" style="width:48px;height:48px;"></i>
+            </div>
+            <div class="empty-state-title">No result yet</div>
+            <div class="empty-state-text">
+              Submit a news article to see Fake/Real and Sentiment outcomes side by side.
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+  // Loading state on submit
+  const form = document.getElementById('combined-form');
+  const btn = document.getElementById('btn-analyse');
+  if (form && btn) {
+    form.addEventListener('submit', function (e) {
+      if (e.submitter && e.submitter.value === 'analyse') {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner" style="width:14px;height:14px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;display:inline-block;animation:spin 0.6s linear infinite;"></span> Analysing…';
+      }
+    });
+  }
+
+  // Charts from server-rendered result
+  {% if result and result.fake_news and fake_probs_json %}
+  (function () {
+    const p = {{ fake_probs_json|safe }};
+    const ctx = document.getElementById('fakeChart');
+    if (!ctx) return;
+    new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Real', 'Fake'],
+        datasets: [{
+          data: [p.real || 0, p.fake || 0],
+          backgroundColor: ['#16a34a', '#dc2626'],
+          borderWidth: 0
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } }
+      }
+    });
+  })();
+  {% endif %}
+
+  {% if result and result.sentiment and sentiment_probs_json %}
+  (function () {
+    const p = {{ sentiment_probs_json|safe }};
+    const ctx = document.getElementById('sentimentChart');
+    if (!ctx) return;
+    new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Positive', 'Negative', 'Neutral'],
+        datasets: [{
+          data: [p.positive || 0, p.negative || 0, p.neutral || 0],
+          backgroundColor: ['#16a34a', '#dc2626', '#737373'],
+          borderWidth: 0
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } }
+      }
+    });
+  })();
+  {% endif %}
+
+  // Copy results
+  const copyBtn = document.getElementById('btn-copy');
+  if (copyBtn) {
+    copyBtn.addEventListener('click', function () {
+      const lines = [];
+      {% if result %}
+      lines.push('Combined Analysis Result');
+      lines.push('Headline: {{ result.headline|escapejs }}');
+      lines.push('Combination: {{ result.combination|escapejs }}');
+      lines.push('Fake/Real: {{ result.overall_fake_label|escapejs }} ({{ result.fake_model_name|escapejs }})');
+      lines.push('Sentiment: {{ result.overall_sentiment_label|escapejs }} ({{ result.sentiment_model_name|escapejs }})');
+      lines.push('Processing time: {{ result.total_processing_time_sec }} s');
+      lines.push('Analysed at: {{ result.analyzed_at|escapejs }}');
+      lines.push('');
+      lines.push('Disclaimer: {{ result.message|escapejs }}');
+      {% endif %}
+      navigator.clipboard.writeText(lines.join('\n')).then(function () {
+        copyBtn.textContent = 'Copied';
+        setTimeout(function () { copyBtn.innerHTML = '<i data-lucide="copy" style="width:14px;height:14px;"></i> Copy Results'; if (window.lucide) lucide.createIcons(); }, 1500);
+      });
+    });
+  }
+})();
+</script>
+<style>
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+{% endblock %}

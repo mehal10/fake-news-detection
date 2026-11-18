@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ meta.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex items-center justify-between" style="flex-wrap:wrap;gap:1rem;">
+  <div>
+    <p class="text-muted text-sm">{{ meta.algorithm }} · {{ meta.feature_method }} · {{ meta.dataset_name }}</p>
+  </div>
+  <div class="flex gap-2">
+    {% if not meta.is_active %}
+    <form method="post" action="{% url 'ml_engine:model_set_active' meta.model_id %}">
+      {% csrf_token %}
+      <button class="btn btn-primary btn-sm" type="submit">Set Active</button>
+    </form>
+    {% else %}
+      <span class="badge badge-success">Active</span>
+    {% endif %}
+    <a href="{% url 'detector:index' %}" class="btn btn-secondary btn-sm">Use for Detection</a>
+  </div>
+</div>
+
+<div class="stats-grid mb-6">
+  <div class="stat-card">
+    <div class="stat-label">Accuracy</div>
+    <div class="stat-value">{{ meta.metrics.accuracy }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Precision</div>
+    <div class="stat-value">{{ meta.metrics.precision }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Recall</div>
+    <div class="stat-value">{{ meta.metrics.recall }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">F1-Score</div>
+    <div class="stat-value">{{ meta.metrics.f1_score }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Train / Test</div>
+    <div class="stat-value" style="font-size:1.25rem;">{{ meta.train_size }} / {{ meta.test_size }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Train Time</div>
+    <div class="stat-value" style="font-size:1.25rem;">{{ meta.training_time_sec }}s</div>
+  </div>
+</div>
+
+{% if meta.message %}
+<div class="alert alert-info mb-4">{{ meta.message }}</div>
+{% endif %}
+
+<div class="grid" style="grid-template-columns:1fr 1fr;gap:1.25rem;">
+  <div class="card">
+    <div class="card-header"><h2 class="card-title">Confusion Matrix</h2></div>
+    <div class="card-body">
+      {% if cm %}
+      <div class="table-wrapper">
+        <table class="table">
+          <thead>
+            <tr>
+              <th></th>
+              {% for lab in cm_labels %}
+                <th>Pred {{ lab }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for lab, row in cm_rows %}
+            <tr>
+              <th>True {{ lab }}</th>
+              {% for cell in row %}
+                <td>{{ cell }}</td>
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p class="text-xs text-muted mt-2">Rows = true labels ({{ cm_labels|join:", " }}), columns = predicted.</p>
+      {% else %}
+      <p class="text-muted text-sm">No confusion matrix available.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h2 class="card-title">Per-Class Metrics</h2></div>
+    <div class="card-body">
+      {% if meta.metrics.per_class %}
+      <div class="table-wrapper">
+        <table class="table">
+          <thead>
+            <tr><th>Class</th><th>Precision</th><th>Recall</th><th>F1</th><th>Support</th></tr>
+          </thead>
+          <tbody>
+            {% for lab, m in meta.metrics.per_class.items %}
+            <tr>
+              <td>{{ lab }}</td>
+              <td>{{ m.precision }}</td>
+              <td>{{ m.recall }}</td>
+              <td>{{ m.f1 }}</td>
+              <td>{{ m.support }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="text-muted text-sm">No per-class metrics.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="card mt-4">
+  <div class="card-header"><h2 class="card-title">Configuration</h2></div>
+  <div class="card-body">
+    <pre class="text-sm" style="white-space:pre-wrap;background:var(--color-gray-50);padding:1rem;border-radius:6px;overflow:auto;">{{ meta.config }}</pre>
+    <p class="text-xs text-muted mt-2">Model ID: {{ meta.model_id }} · Created: {{ meta.created_at }}</p>
+  </div>
+</div>
+{% endblock %}

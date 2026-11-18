@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+
+{% block title %}Upload Dataset{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:640px;">
+  <div class="card-header">
+    <h2 class="card-title">Upload CSV Dataset</h2>
+  </div>
+  <div class="card-body">
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      <div class="form-group">
+        <label class="form-label" for="name">Dataset Name</label>
+        <input type="text" id="name" name="name" class="form-control" required
+               placeholder="e.g. FakeNewsNet-2024">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="dataset_type">Dataset Type</label>
+        <select id="dataset_type" name="dataset_type" class="form-control">
+          <option value="fake_news">Fake News Detection</option>
+          <option value="sentiment">Sentiment Analysis</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="file">CSV File</label>
+        <input type="file" id="file" name="file" class="form-control" accept=".csv" required>
+        <p class="form-hint">UTF-8 or Latin-1 encoded CSV. Flexible column names supported.</p>
+      </div>
+
+      <div class="card mb-4" style="background:var(--color-gray-50);">
+        <div class="card-body" style="padding:1rem;">
+          <p class="text-sm font-medium mb-2">Optional column mapping</p>
+          <p class="text-xs text-muted mb-3">Leave blank to auto-detect common column names (text, content, label, title, sentiment, …).</p>
+          <div class="form-group mb-2">
+            <label class="form-label" for="text_column">Text / Content column</label>
+            <input type="text" id="text_column" name="text_column" class="form-control" placeholder="auto-detect">
+          </div>
+          <div class="form-group mb-2">
+            <label class="form-label" for="title_column">Title column (fake news, optional)</label>
+            <input type="text" id="title_column" name="title_column" class="form-control" placeholder="auto-detect">
+          </div>
+          <div class="form-group mb-0">
+            <label class="form-label" for="label_column">Label column</label>
+            <input type="text" id="label_column" name="label_column" class="form-control" placeholder="auto-detect">
+          </div>
+        </div>
+      </div>
+
+      <div class="flex gap-2">
+        <button type="submit" class="btn btn-primary">
+          <i data-lucide="upload" style="width:16px;height:16px;"></i>
+          Upload &amp; Validate
+        </button>
+        <a href="{% url 'ml_engine:dataset_list' %}" class="btn btn-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

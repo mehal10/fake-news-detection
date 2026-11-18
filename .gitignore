@@ -1,0 +1,20 @@
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.env
+*.sqlite3
+db.sqlite3
+staticfiles/
+media/uploads/
+.DS_Store
+*.log
+.idea/
+.vscode/
+
+# Large dataset files (keep only samples in the repo)
+media/datasets/*.csv
+!media/datasets/sample_*.csv

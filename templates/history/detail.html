@@ -1,0 +1,289 @@
+{% extends 'base.html' %}
+
+{% block title %}Analysis #{{ record.id }}{% endblock %}
+
+{% block extra_css %}
+<style>
+  .result-verdict {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    padding: 0.5rem 1rem; border-radius: 8px; font-weight: 700; font-size: 1.05rem;
+  }
+  .verdict-real { background: var(--color-success-bg); color: var(--color-success); }
+  .verdict-fake { background: var(--color-error-bg); color: var(--color-error); }
+  .verdict-positive { background: var(--color-success-bg); color: var(--color-success); }
+  .verdict-negative { background: var(--color-error-bg); color: var(--color-error); }
+  .verdict-neutral { background: var(--color-gray-100); color: var(--color-gray-700); }
+  .prob-bar { height: 8px; background: var(--color-gray-200); border-radius: 4px; overflow: hidden; margin-top: 0.25rem; }
+  .prob-fill { height: 100%; border-radius: 4px; }
+  .meta-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 0.75rem 1.25rem; font-size: 0.875rem;
+  }
+  .meta-grid dt { color: var(--color-gray-500); margin: 0; }
+  .meta-grid dd { font-weight: 600; margin: 0; }
+  .content-box {
+    white-space: pre-wrap; color: var(--color-gray-700);
+    background: var(--color-gray-50); border-radius: 8px; padding: 1rem;
+    border: 1px solid var(--color-gray-200); line-height: 1.6;
+  }
+  @media print {
+    .sidebar, .topbar, .no-print { display: none !important; }
+    .main-content { margin: 0 !important; padding: 0 !important; }
+  }
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+    display: none; align-items: center; justify-content: center; z-index: 1000;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal-box {
+    background: #fff; border-radius: 12px; padding: 1.5rem;
+    max-width: 420px; width: 90%; box-shadow: var(--shadow-md);
+  }
+  .modal-actions { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1.25rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mb-4 flex items-center justify-between no-print" style="flex-wrap: wrap; gap: 0.75rem;">
+  <div>
+    <a href="{% url 'history:index' %}" class="text-sm text-muted">← Back to History</a>
+  </div>
+  <div class="flex gap-2" style="flex-wrap: wrap;">
+    <button type="button" class="btn btn-secondary btn-sm" id="btn-copy">
+      <i data-lucide="copy" style="width:14px;height:14px;"></i> Copy
+    </button>
+    <button type="button" class="btn btn-secondary btn-sm" onclick="window.print()">
+      <i data-lucide="printer" style="width:14px;height:14px;"></i> Print
+    </button>
+    <a href="{% url 'history:export' record.id %}?format=json" class="btn btn-secondary btn-sm">
+      <i data-lucide="download" style="width:14px;height:14px;"></i> JSON
+    </a>
+    <a href="{% url 'history:export' record.id %}?format=csv" class="btn btn-secondary btn-sm">
+      <i data-lucide="file-spreadsheet" style="width:14px;height:14px;"></i> CSV
+    </a>
+    <a href="{% url 'dashboard:index' %}" class="btn btn-ghost btn-sm">Dashboard</a>
+    <button type="button" class="btn btn-ghost btn-sm" id="btn-delete"
+            style="color: var(--color-error);">
+      <i data-lucide="trash-2" style="width:14px;height:14px;"></i> Delete
+    </button>
+  </div>
+</div>
+
+<!-- Header card -->
+<div class="card mb-4">
+  <div class="card-header">
+    <h2 class="card-title">Analysis #{{ record.id }}</h2>
+    <span class="badge badge-default">{{ record.get_analysis_type_display }}</span>
+  </div>
+  <div class="card-body">
+    <dl class="meta-grid mb-4">
+      <div>
+        <dt>Analysis Type</dt>
+        <dd>{{ record.get_analysis_type_display }}</dd>
+      </div>
+      <div>
+        <dt>Date</dt>
+        <dd>{{ record.created_at|date:"M d, Y H:i:s" }}</dd>
+      </div>
+      <div>
+        <dt>Processing Time</dt>
+        <dd>{% if record.processing_time %}{{ record.processing_time }} s{% else %}—{% endif %}</dd>
+      </div>
+      {% if record.fake_label %}
+      <div>
+        <dt>Fake / Real</dt>
+        <dd>{{ record.get_fake_label_display }}
+          {% if record.fake_confidence %} ({{ record.fake_confidence|floatformat:3 }}){% endif %}
+        </dd>
+      </div>
+      {% endif %}
+      {% if record.sentiment_label %}
+      <div>
+        <dt>Sentiment</dt>
+        <dd>{{ record.get_sentiment_label_display }}
+          {% if record.sentiment_confidence %} ({{ record.sentiment_confidence|floatformat:3 }}){% endif %}
+        </dd>
+      </div>
+      {% endif %}
+    </dl>
+
+    {% if record.headline %}
+      <p class="font-semibold mb-2" style="font-size: 1.05rem;">{{ record.headline }}</p>
+    {% endif %}
+    <div class="content-box" id="news-content">{{ record.text }}</div>
+  </div>
+</div>
+
+<!-- Result panels -->
+<div class="grid" style="grid-template-columns: {% if record.fake_label and record.sentiment_label %}1fr 1fr{% else %}1fr{% endif %}; gap: 1rem;">
+
+  {% if record.fake_label %}
+  <div class="card">
+    <div class="card-header"><h2 class="card-title">Fake News Detection</h2></div>
+    <div class="card-body">
+      <div class="mb-3">
+        {% if record.fake_label == 'real' %}
+          <span class="result-verdict verdict-real">
+            <i data-lucide="shield-check" style="width:20px;height:20px;"></i> Real
+          </span>
+        {% else %}
+          <span class="result-verdict verdict-fake">
+            <i data-lucide="shield-alert" style="width:20px;height:20px;"></i> Fake
+          </span>
+        {% endif %}
+      </div>
+
+      {% if record.fake_scores %}
+        {% for label, score in record.fake_scores.items %}
+        <div class="mb-2">
+          <div class="flex justify-between text-sm mb-1">
+            <span>{{ label|capfirst }}</span>
+            <span class="font-medium">{{ score }}</span>
+          </div>
+          <div class="prob-bar">
+            <div class="prob-fill" style="width: {% widthratio score 1 100 %}%;
+              background: {% if label == 'real' %}var(--color-success){% else %}var(--color-error){% endif %};"></div>
+          </div>
+        </div>
+        {% endfor %}
+      {% elif record.fake_confidence %}
+        <p class="text-sm mb-2">Confidence: <strong>{{ record.fake_confidence|floatformat:3 }}</strong></p>
+      {% endif %}
+
+      <p class="text-sm text-muted mt-3">
+        Model:
+        <strong>
+          {% if record.fake_model_name %}{{ record.fake_model_name }}
+          {% elif record.fake_model %}{{ record.get_fake_model_display }}
+          {% else %}—{% endif %}
+        </strong>
+        {% if record.fake_model_id %}<br><span class="text-muted">ID: {{ record.fake_model_id }}</span>{% endif %}
+      </p>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if record.sentiment_label %}
+  <div class="card">
+    <div class="card-header"><h2 class="card-title">Sentiment Analysis</h2></div>
+    <div class="card-body">
+      <div class="mb-3">
+        {% if record.sentiment_label == 'positive' %}
+          <span class="result-verdict verdict-positive">
+            <i data-lucide="smile" style="width:20px;height:20px;"></i> Positive
+          </span>
+        {% elif record.sentiment_label == 'negative' %}
+          <span class="result-verdict verdict-negative">
+            <i data-lucide="frown" style="width:20px;height:20px;"></i> Negative
+          </span>
+        {% else %}
+          <span class="result-verdict verdict-neutral">
+            <i data-lucide="meh" style="width:20px;height:20px;"></i> Neutral
+          </span>
+        {% endif %}
+      </div>
+
+      {% if record.sentiment_scores %}
+        {% for label, score in record.sentiment_scores.items %}
+        <div class="mb-2">
+          <div class="flex justify-between text-sm mb-1">
+            <span>{{ label|capfirst }}</span>
+            <span class="font-medium">{{ score }}</span>
+          </div>
+          <div class="prob-bar">
+            <div class="prob-fill" style="width: {% widthratio score 1 100 %}%;
+              background: {% if label == 'positive' %}var(--color-success){% elif label == 'negative' %}var(--color-error){% else %}var(--color-gray-500){% endif %};"></div>
+          </div>
+        </div>
+        {% endfor %}
+      {% elif record.sentiment_confidence %}
+        <p class="text-sm mb-2">Confidence: <strong>{{ record.sentiment_confidence|floatformat:3 }}</strong></p>
+      {% endif %}
+
+      <p class="text-sm text-muted mt-3">
+        Model:
+        <strong>
+          {% if record.sentiment_model_name %}{{ record.sentiment_model_name }}
+          {% elif record.sentiment_model %}{{ record.get_sentiment_model_display }}
+          {% else %}—{% endif %}
+        </strong>
+        {% if record.sentiment_model_id %}<br><span class="text-muted">ID: {{ record.sentiment_model_id }}</span>{% endif %}
+      </p>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if not record.fake_label and not record.sentiment_label %}
+  <div class="card">
+    <div class="card-body">
+      <div class="empty-state">
+        <div class="empty-state-text">No prediction results stored for this record.</div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<div class="mt-4 no-print">
+  <a href="{% url 'history:index' %}" class="btn btn-secondary btn-sm">← Return to History</a>
+  <a href="{% url 'dashboard:index' %}" class="btn btn-ghost btn-sm">Dashboard</a>
+</div>
+
+<!-- Delete modal -->
+<div class="modal-backdrop" id="modal-delete">
+  <div class="modal-box">
+    <h3 style="margin-bottom:0.5rem;">Delete analysis #{{ record.id }}?</h3>
+    <p class="text-sm text-muted">This permanently removes the record from the database and updates dashboard statistics.</p>
+    <form method="post" action="{% url 'history:delete' record.id %}">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{% url 'history:index' %}">
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="btn-cancel-delete">Cancel</button>
+        <button type="submit" class="btn btn-primary" style="background:var(--color-error);border-color:var(--color-error);">Delete</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  var modal = document.getElementById('modal-delete');
+  var btn = document.getElementById('btn-delete');
+  var cancel = document.getElementById('btn-cancel-delete');
+  if (btn) btn.addEventListener('click', function () { modal.classList.add('open'); });
+  if (cancel) cancel.addEventListener('click', function () { modal.classList.remove('open'); });
+  if (modal) modal.addEventListener('click', function (e) {
+    if (e.target === modal) modal.classList.remove('open');
+  });
+
+  var copyBtn = document.getElementById('btn-copy');
+  if (copyBtn) {
+    copyBtn.addEventListener('click', function () {
+      var lines = [
+        'Analysis #{{ record.id }}',
+        'Type: {{ record.get_analysis_type_display|escapejs }}',
+        'Date: {{ record.created_at|date:"Y-m-d H:i:s" }}',
+        'Headline: {{ record.headline|escapejs }}',
+        'Fake/Real: {{ record.fake_label|default:"—"|escapejs }}{% if record.fake_confidence %} ({{ record.fake_confidence }}){% endif %}',
+        'Sentiment: {{ record.sentiment_label|default:"—"|escapejs }}{% if record.sentiment_confidence %} ({{ record.sentiment_confidence }}){% endif %}',
+        'Fake model: {{ record.fake_model_name|default:record.fake_model|escapejs }}',
+        'Sentiment model: {{ record.sentiment_model_name|default:record.sentiment_model|escapejs }}',
+        'Processing time: {% if record.processing_time %}{{ record.processing_time }} s{% else %}—{% endif %}',
+        '',
+        'Content:',
+        document.getElementById('news-content').textContent
+      ];
+      navigator.clipboard.writeText(lines.join('\n')).then(function () {
+        copyBtn.textContent = 'Copied';
+        setTimeout(function () {
+          copyBtn.innerHTML = '<i data-lucide="copy" style="width:14px;height:14px;"></i> Copy';
+          if (window.lucide) lucide.createIcons();
+        }, 1500);
+      });
+    });
+  }
+})();
+</script>
+{% endblock %}

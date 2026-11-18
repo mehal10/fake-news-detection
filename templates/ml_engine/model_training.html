@@ -1,0 +1,163 @@
+{% extends 'base.html' %}
+
+{% block title %}Model Training{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+  <p class="text-muted text-sm">Train classifiers on validated datasets. Models are saved to disk and registered for prediction.</p>
+</div>
+
+<div class="flex gap-2 mb-6">
+  <a href="?task=fake_news" class="btn {% if task == 'fake_news' %}btn-primary{% else %}btn-secondary{% endif %} btn-sm">Fake News Models</a>
+  <a href="?task=sentiment" class="btn {% if task == 'sentiment' %}btn-primary{% else %}btn-secondary{% endif %} btn-sm">Sentiment Models</a>
+</div>
+
+{% if not datasets %}
+<div class="alert alert-warning mb-4">
+  No validated <strong>{{ task }}</strong> datasets found.
+  <a href="{% url 'ml_engine:dataset_upload' %}">Upload a labelled CSV</a>.
+  {% if task == 'sentiment' %}
+    Labels should map to positive / negative / neutral.
+  {% else %}
+    Labels should map to real / fake.
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="grid" style="grid-template-columns:1fr 1fr;gap:1.5rem;">
+  <div class="card">
+    <div class="card-header"><h2 class="card-title">Train New {{ task|title }} Model</h2></div>
+    <div class="card-body">
+      <form method="post" action="{% url 'ml_engine:model_train_start' %}">
+        {% csrf_token %}
+        <input type="hidden" name="task" value="{{ task }}">
+        <div class="form-group">
+          <label class="form-label" for="dataset_id">Dataset</label>
+          <select name="dataset_id" id="dataset_id" class="form-control" required>
+            <option value="">— select dataset —</option>
+            {% for ds in datasets %}
+              <option value="{{ ds.pk }}">{{ ds.name }} ({{ ds.cleaned_rows|default:ds.original_rows }} rows)</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="algorithm">Algorithm</label>
+          <select name="algorithm" id="algorithm" class="form-control">
+            {% for key, info in algorithms.items %}
+              <option value="{{ key }}">{{ info.name }} — {{ info.description }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="model_name">Model Name (optional)</label>
+          <input type="text" name="model_name" id="model_name" class="form-control" placeholder="Auto-generated if blank">
+        </div>
+        <div class="grid" style="grid-template-columns:1fr 1fr;gap:1rem;">
+          <div class="form-group">
+            <label class="form-label" for="test_size">Test Split</label>
+            <select name="test_size" id="test_size" class="form-control">
+              <option value="0.2" selected>20%</option>
+              <option value="0.25">25%</option>
+              <option value="0.3">30%</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="max_features">TF-IDF Max Features</label>
+            <input type="number" name="max_features" id="max_features" class="form-control" value="5000" min="100" max="50000">
+          </div>
+        </div>
+        <div class="grid" style="grid-template-columns:1fr 1fr;gap:1rem;">
+          <div class="form-group">
+            <label class="form-label" for="alpha">NB Alpha</label>
+            <input type="number" name="alpha" id="alpha" class="form-control" value="1.0" step="0.1" min="0.01">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="C">LR C</label>
+            <input type="number" name="C" id="C" class="form-control" value="1.0" step="0.1" min="0.01">
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary" {% if not datasets %}disabled{% endif %}>
+          <i data-lucide="play" style="width:16px;height:16px;"></i>
+          Start Training
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h2 class="card-title">Active {{ task|title }} Model</h2></div>
+    <div class="card-body">
+      {% if active_model %}
+        <p class="font-semibold mb-2">{{ active_model.name }}</p>
+        <p class="text-sm text-muted mb-2">{{ active_model.algorithm }} · {{ active_model.feature_method }}</p>
+        <p class="text-sm mb-2">Accuracy: <strong>{{ active_model.metrics.accuracy }}</strong>
+          · F1: <strong>{{ active_model.metrics.f1_score }}</strong>
+          {% if active_model.metrics.f1_macro %} · Macro-F1: <strong>{{ active_model.metrics.f1_macro }}</strong>{% endif %}
+        </p>
+        <p class="text-xs text-muted">train={{ active_model.train_size }} test={{ active_model.test_size }}</p>
+        <a href="{% url 'ml_engine:model_detail' active_model.model_id %}" class="btn btn-secondary btn-sm mt-3">View Details</a>
+      {% else %}
+        <div class="empty-state" style="padding:1.5rem;">
+          <div class="empty-state-title">No active model</div>
+          <div class="empty-state-text">Train a model to enable {{ task }} analysis.</div>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="card mt-4">
+  <div class="card-header"><h2 class="card-title">Trained {{ task|title }} Models</h2></div>
+  <div class="card-body" style="padding:0;">
+    {% if models %}
+    <div class="table-wrapper">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Algorithm</th>
+            <th>Accuracy</th>
+            <th>F1</th>
+            <th>Samples</th>
+            <th>Active</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for m in models %}
+          <tr>
+            <td>
+              <a href="{% url 'ml_engine:model_detail' m.model_id %}">{{ m.name }}</a>
+              <div class="text-xs text-muted">{{ m.dataset_name }}</div>
+            </td>
+            <td><span class="badge badge-default">{{ m.algorithm }}</span></td>
+            <td>{{ m.metrics.accuracy|default:"—" }}</td>
+            <td>{{ m.metrics.f1_score|default:"—" }}</td>
+            <td class="text-sm">{{ m.train_size }} / {{ m.test_size }}</td>
+            <td>{% if m.is_active %}<span class="badge badge-success">Active</span>{% else %}—{% endif %}</td>
+            <td class="flex gap-2">
+              {% if not m.is_active %}
+              <form method="post" action="{% url 'ml_engine:model_set_active' m.model_id %}">
+                {% csrf_token %}
+                <button class="btn btn-ghost btn-sm" type="submit">Activate</button>
+              </form>
+              {% endif %}
+              <form method="post" action="{% url 'ml_engine:model_delete' m.model_id %}" onsubmit="return confirm('Delete?');">
+                {% csrf_token %}
+                <button class="btn btn-ghost btn-sm" type="submit">Delete</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-state-title">No models trained yet</div>
+      <div class="empty-state-text">Upload a dataset and start training above.</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

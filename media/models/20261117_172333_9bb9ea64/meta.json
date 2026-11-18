@@ -1,0 +1,139 @@
+{
+  "model_id": "20261117_172333_9bb9ea64",
+  "name": "Sentiment LR Strong",
+  "task": "sentiment",
+  "algorithm": "sentiment_lr",
+  "feature_method": "tfidf",
+  "dataset_name": "Sentiment Strong",
+  "dataset_id": null,
+  "metrics": {
+    "accuracy": 0.8213,
+    "precision": 0.8193,
+    "recall": 0.8213,
+    "f1_score": 0.8203,
+    "precision_macro": 0.5476,
+    "recall_macro": 0.5489,
+    "f1_macro": 0.5482,
+    "labels": [
+      "negative",
+      "neutral",
+      "positive"
+    ],
+    "confusion_matrix": [
+      [
+        166,
+        0,
+        35
+      ],
+      [
+        0,
+        0,
+        1
+      ],
+      [
+        36,
+        0,
+        165
+      ]
+    ],
+    "per_class": {
+      "negative": {
+        "precision": 0.8218,
+        "recall": 0.8259,
+        "f1": 0.8238,
+        "support": 201
+      },
+      "neutral": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 1
+      },
+      "positive": {
+        "precision": 0.8209,
+        "recall": 0.8209,
+        "f1": 0.8209,
+        "support": 201
+      }
+    },
+    "classification_report": {
+      "negative": {
+        "precision": 0.8217821782178217,
+        "recall": 0.8258706467661692,
+        "f1-score": 0.8238213399503722,
+        "support": 201.0
+      },
+      "neutral": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 1.0
+      },
+      "positive": {
+        "precision": 0.8208955223880597,
+        "recall": 0.8208955223880597,
+        "f1-score": 0.8208955223880597,
+        "support": 201.0
+      },
+      "accuracy": 0.8213399503722084,
+      "macro avg": {
+        "precision": 0.5475592335352938,
+        "recall": 0.5489220563847429,
+        "f1-score": 0.5482389541128107,
+        "support": 403.0
+      },
+      "weighted avg": {
+        "precision": 0.8193007886396579,
+        "recall": 0.8213399503722084,
+        "f1-score": 0.8203178395285975,
+        "support": 403.0
+      }
+    }
+  },
+  "config": {
+    "algorithm": "sentiment_lr",
+    "feature_method": "tfidf",
+    "feature_params": {
+      "max_features": 15000,
+      "min_df": 2,
+      "ngram_range": [
+        1,
+        2
+      ]
+    },
+    "model_params": {
+      "C": 2.0,
+      "max_iter": 1000,
+      "class_weight": "balanced"
+    },
+    "random_state": 42,
+    "preprocess": {
+      "lowercase": true,
+      "remove_urls": true,
+      "remove_html": true,
+      "remove_special_chars": true,
+      "normalize_whitespace": true,
+      "tokenize": true,
+      "remove_stopwords": true,
+      "preserve_negation": true,
+      "stem": false,
+      "lemmatize": true,
+      "min_token_length": 1,
+      "language": "english"
+    },
+    "labels": [
+      "negative",
+      "neutral",
+      "positive"
+    ],
+    "class_weight": "balanced"
+  },
+  "created_at": "2026-11-17T17:23:35.537477+00:00",
+  "is_active": true,
+  "train_size": 1610,
+  "test_size": 403,
+  "training_time_sec": 1.6894,
+  "testing_time_sec": 0.0006,
+  "status": "ready",
+  "message": "Trained on 1610 samples, tested on 403. Accuracy=0.8213, Macro-F1=0.5482"
+}

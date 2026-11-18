@@ -1,0 +1,206 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fake News Detection & Sentiment Analysis System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+  <div class="landing-page">
+    <!-- Navigation -->
+    <nav class="landing-nav">
+      <a href="{% url 'core:landing' %}" class="landing-nav-brand">
+        <div class="sidebar-logo">NA</div>
+        <span>News Analysis</span>
+      </a>
+      <div class="landing-nav-links">
+        <a href="#features">Features</a>
+        <a href="#how-it-works">How It Works</a>
+        <a href="#technology">Technology</a>
+        <a href="{% url 'core:about' %}">About</a>
+        <a href="{% url 'dashboard:index' %}" class="btn btn-primary btn-sm">Get Started</a>
+      </div>
+    </nav>
+
+    <!-- Hero -->
+    <section class="hero">
+      <div class="hero-badge">
+        <i data-lucide="sparkles" style="width:14px;height:14px;"></i>
+        Research-oriented NLP Platform
+      </div>
+      <h1>Fake News Detection &amp;<br>News Sentiment Analysis</h1>
+      <p class="hero-subtitle">
+        A professional system that detects misinformation and analyzes the emotional tone of news content using natural language processing techniques.
+      </p>
+      <div class="hero-actions">
+        <a href="{% url 'dashboard:index' %}" class="btn btn-primary btn-lg">
+          <i data-lucide="layout-dashboard" style="width:18px;height:18px;"></i>
+          Open Dashboard
+        </a>
+        <a href="{% url 'detector:index' %}" class="btn btn-secondary btn-lg">
+          <i data-lucide="shield-alert" style="width:18px;height:18px;"></i>
+          Try Detection
+        </a>
+      </div>
+    </section>
+
+    <!-- Introduction -->
+    <section class="section" id="intro">
+      <div class="section-header">
+        <h2>Project Introduction</h2>
+        <p>Built for researchers, journalists, and analysts who need reliable tools to evaluate news credibility and emotional framing.</p>
+      </div>
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="feature-icon">
+            <i data-lucide="shield-check" style="width:20px;height:20px;"></i>
+          </div>
+          <h3>Fake News Detection</h3>
+          <p>Classify news articles as real or fake using supervised machine learning models trained on labeled datasets. Identify linguistic patterns associated with misinformation.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">
+            <i data-lucide="heart-pulse" style="width:20px;height:20px;"></i>
+          </div>
+          <h3>Sentiment Analysis</h3>
+          <p>Determine the polarity of news text—positive, negative, or neutral—and surface the intensity of emotional language used in reporting.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">
+            <i data-lucide="layers" style="width:20px;height:20px;"></i>
+          </div>
+          <h3>Combined Insights</h3>
+          <p>Run both analyses together to understand how sentiment and credibility interact, revealing potential bias or sensational framing.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- How It Works -->
+    <section class="section" id="how-it-works" style="background: var(--color-gray-50);">
+      <div class="section-header">
+        <h2>How It Works</h2>
+        <p>A straightforward pipeline from text input to structured analysis results.</p>
+      </div>
+      <div class="steps">
+        <div class="step">
+          <div class="step-number">1</div>
+          <h4>Submit Text</h4>
+          <p>Paste a news headline or full article into the analysis form.</p>
+        </div>
+        <div class="step">
+          <div class="step-number">2</div>
+          <h4>Preprocess</h4>
+          <p>Text is cleaned, tokenized, and transformed into numerical features.</p>
+        </div>
+        <div class="step">
+          <div class="step-number">3</div>
+          <h4>Predict</h4>
+          <p>Trained models classify authenticity and estimate sentiment polarity.</p>
+        </div>
+        <div class="step">
+          <div class="step-number">4</div>
+          <h4>Review Results</h4>
+          <p>View confidence scores, explanations, and store results in history.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- NLP Technology -->
+    <section class="section" id="technology">
+      <div class="section-header">
+        <h2>NLP Technology</h2>
+        <p>Classic and modern natural language processing techniques power the system.</p>
+      </div>
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="feature-icon">
+            <i data-lucide="text" style="width:20px;height:20px;"></i>
+          </div>
+          <h3>Text Preprocessing</h3>
+          <p>Lowercasing, stop-word removal, stemming/lemmatization, and punctuation handling to normalize input for models.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">
+            <i data-lucide="hash" style="width:20px;height:20px;"></i>
+          </div>
+          <h3>Feature Extraction</h3>
+          <p>TF-IDF vectorization and bag-of-words representations capture important lexical signals for classification.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">
+            <i data-lucide="cpu" style="width:20px;height:20px;"></i>
+          </div>
+          <h3>Machine Learning Models</h3>
+          <p>Supervised classifiers such as Logistic Regression, Naive Bayes, and Random Forest for robust predictions.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Key Features -->
+    <section class="section" id="features" style="background: var(--color-gray-50);">
+      <div class="section-header">
+        <h2>Key Features</h2>
+        <p>Everything needed for systematic news analysis in one interface.</p>
+      </div>
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="feature-icon"><i data-lucide="layout-dashboard" style="width:20px;height:20px;"></i></div>
+          <h3>Unified Dashboard</h3>
+          <p>Overview of recent analyses, quick stats, and shortcuts to all tools.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon"><i data-lucide="shield-alert" style="width:20px;height:20px;"></i></div>
+          <h3>Fake News Detector</h3>
+          <p>Dedicated workspace for credibility classification with confidence scores.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon"><i data-lucide="message-square-text" style="width:20px;height:20px;"></i></div>
+          <h3>Sentiment Analyzer</h3>
+          <p>Polarity detection with clear visual indicators for positive, negative, and neutral.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon"><i data-lucide="git-merge" style="width:20px;height:20px;"></i></div>
+          <h3>Combined Analysis</h3>
+          <p>Run both models on the same text and compare outcomes side by side.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon"><i data-lucide="history" style="width:20px;height:20px;"></i></div>
+          <h3>Analysis History</h3>
+          <p>Browse, filter, and revisit previous results stored in the local database.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon"><i data-lucide="bar-chart-3" style="width:20px;height:20px;"></i></div>
+          <h3>Reports &amp; Analytics</h3>
+          <p>Charts and summaries of model usage, accuracy trends, and distribution of labels.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="section" style="text-align:center;">
+      <h2 style="font-size:1.5rem; font-weight:700; margin-bottom:0.75rem;">Ready to analyze news content?</h2>
+      <p style="color:var(--color-gray-500); margin-bottom:1.5rem;">Open the dashboard and start with a single article.</p>
+      <a href="{% url 'dashboard:index' %}" class="btn btn-primary btn-lg">
+        Get Started
+        <i data-lucide="arrow-right" style="width:18px;height:18px;"></i>
+      </a>
+    </section>
+
+    <!-- Footer -->
+    <footer class="landing-footer">
+      <p>Fake News Detection &amp; News Sentiment Analysis System · Research &amp; Educational Use</p>
+      <p class="mt-2">Built with Django · Python · NLP</p>
+    </footer>
+  </div>
+
+  <script>
+    lucide.createIcons();
+  </script>
+</body>
+</html>

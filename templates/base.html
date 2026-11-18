@@ -1,0 +1,45 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}{{ page_title|default:"Dashboard" }}{% endblock %} · News Analysis System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+  {% block body %}
+  <div class="app-shell">
+    {% include 'components/sidebar.html' %}
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <div class="main-content">
+      {% include 'components/topbar.html' %}
+
+      <main class="page-content">
+        {% if messages %}
+          {% for message in messages %}
+            <div class="alert alert-{{ message.tags|default:'info' }}" role="alert">
+              <span>{{ message }}</span>
+            </div>
+          {% endfor %}
+        {% endif %}
+
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+  {% endblock %}
+
+  <script src="{% static 'js/app.js' %}"></script>
+  {% block extra_js %}{% endblock %}
+  <script>
+    lucide.createIcons();
+  </script>
+</body>
+</html>

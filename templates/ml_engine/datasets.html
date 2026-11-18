@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+
+{% block title %}Dataset Management{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex items-center justify-between" style="flex-wrap:wrap;gap:1rem;">
+  <p class="text-muted text-sm">Upload and manage training datasets for fake news detection and sentiment analysis.</p>
+  <a href="{% url 'ml_engine:dataset_upload' %}" class="btn btn-primary btn-sm">
+    <i data-lucide="upload" style="width:14px;height:14px;"></i>
+    Upload Dataset
+  </a>
+</div>
+
+{% if datasets %}
+<div class="card">
+  <div class="card-body" style="padding:0;">
+    <div class="table-wrapper">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Status</th>
+            <th>Rows</th>
+            <th>Classes</th>
+            <th>Vocab</th>
+            <th>Uploaded</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for ds in datasets %}
+          <tr>
+            <td>
+              <a href="{% url 'ml_engine:dataset_detail' ds.pk %}" class="font-medium">{{ ds.name }}</a>
+              <div class="text-xs text-muted">{{ ds.original_filename }}</div>
+            </td>
+            <td><span class="badge badge-default">{{ ds.get_dataset_type_display }}</span></td>
+            <td>
+              {% if ds.status == 'ready' or ds.status == 'validated' or ds.status == 'preprocessed' %}
+                <span class="badge badge-success">{{ ds.get_status_display }}</span>
+              {% elif ds.status == 'invalid' or ds.status == 'error' %}
+                <span class="badge badge-error">{{ ds.get_status_display }}</span>
+              {% else %}
+                <span class="badge badge-default">{{ ds.get_status_display }}</span>
+              {% endif %}
+            </td>
+            <td class="text-sm">
+              {% if ds.cleaned_rows %}{{ ds.cleaned_rows }}{% else %}{{ ds.original_rows }}{% endif %}
+              {% if ds.original_rows and ds.cleaned_rows and ds.cleaned_rows != ds.original_rows %}
+                <span class="text-muted text-xs">/ {{ ds.original_rows }}</span>
+              {% endif %}
+            </td>
+            <td class="text-sm">
+              {% if ds.class_distribution %}
+                {% for label, count in ds.class_distribution.items %}
+                  <span class="badge badge-default" style="margin:1px;">{{ label }}: {{ count }}</span>
+                {% endfor %}
+              {% else %}—{% endif %}
+            </td>
+            <td class="text-sm">{{ ds.vocabulary_size|default:"—" }}</td>
+            <td class="text-sm text-muted" style="white-space:nowrap;">{{ ds.created_at|date:"M d, Y" }}</td>
+            <td>
+              <a href="{% url 'ml_engine:dataset_detail' ds.pk %}" class="btn btn-ghost btn-sm">View</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% else %}
+<div class="card">
+  <div class="card-body">
+    <div class="empty-state">
+      <div class="empty-state-icon">
+        <i data-lucide="database" style="width:48px;height:48px;"></i>
+      </div>
+      <div class="empty-state-title">No datasets yet</div>
+      <div class="empty-state-text">Upload a CSV dataset to begin training models.</div>
+      <a href="{% url 'ml_engine:dataset_upload' %}" class="btn btn-primary btn-sm">Upload Dataset</a>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

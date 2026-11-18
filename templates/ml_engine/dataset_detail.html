@@ -1,0 +1,211 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ dataset.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex items-center justify-between" style="flex-wrap:wrap;gap:1rem;">
+  <div>
+    <p class="text-muted text-sm">{{ dataset.original_filename }} · {{ dataset.get_dataset_type_display }}</p>
+  </div>
+  <div class="flex gap-2">
+    {% if dataset.status == 'validated' or dataset.status == 'preprocessed' or dataset.status == 'ready' %}
+    <form method="post" action="{% url 'ml_engine:dataset_preprocess' dataset.pk %}">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-primary btn-sm">
+        <i data-lucide="wand-2" style="width:14px;height:14px;"></i>
+        Run Preprocessing
+      </button>
+    </form>
+    {% endif %}
+    <form method="post" action="{% url 'ml_engine:dataset_delete' dataset.pk %}" onsubmit="return confirm('Delete this dataset?');">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+    </form>
+  </div>
+</div>
+
+<div class="stats-grid mb-6">
+  <div class="stat-card">
+    <div class="stat-label">Status</div>
+    <div class="stat-value" style="font-size:1.1rem;">
+      {% if dataset.status == 'ready' or dataset.status == 'validated' %}
+        <span class="badge badge-success">{{ dataset.get_status_display }}</span>
+      {% elif dataset.status == 'invalid' or dataset.status == 'error' %}
+        <span class="badge badge-error">{{ dataset.get_status_display }}</span>
+      {% else %}
+        <span class="badge badge-default">{{ dataset.get_status_display }}</span>
+      {% endif %}
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Original Rows</div>
+    <div class="stat-value">{{ dataset.original_rows }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Cleaned Rows</div>
+    <div class="stat-value">{{ dataset.cleaned_rows }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Vocabulary Size</div>
+    <div class="stat-value">{{ dataset.vocabulary_size|default:"—" }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Duplicates</div>
+    <div class="stat-value">{{ dataset.duplicate_count }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Columns</div>
+    <div class="stat-value">{{ dataset.column_names|length }}</div>
+  </div>
+</div>
+
+{% if dataset.message %}
+<div class="alert alert-info mb-4">{{ dataset.message }}</div>
+{% endif %}
+
+{% if dataset.validation_errors %}
+<div class="alert alert-error mb-4">
+  <div>
+    <strong>Validation errors</strong>
+    <ul style="margin:0.5rem 0 0 1rem;list-style:disc;">
+      {% for e in dataset.validation_errors %}<li>{{ e }}</li>{% endfor %}
+    </ul>
+  </div>
+</div>
+{% endif %}
+
+{% if dataset.validation_warnings %}
+<div class="alert alert-warning mb-4">
+  <div>
+    <strong>Warnings</strong>
+    <ul style="margin:0.5rem 0 0 1rem;list-style:disc;">
+      {% for w in dataset.validation_warnings %}<li>{{ w }}</li>{% endfor %}
+    </ul>
+  </div>
+</div>
+{% endif %}
+
+<div class="grid" style="grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.5rem;">
+  <div class="card">
+    <div class="card-header"><h2 class="card-title">Class Distribution</h2></div>
+    <div class="card-body">
+      {% if dataset.class_distribution %}
+        <ul>
+          {% for label, count in dataset.class_distribution.items %}
+          <li class="flex justify-between mb-2">
+            <span class="badge badge-default">{{ label }}</span>
+            <span class="font-medium">{{ count }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="text-muted text-sm">No class data.</p>
+      {% endif %}
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header"><h2 class="card-title">Missing Values</h2></div>
+    <div class="card-body">
+      {% if dataset.missing_values %}
+        <ul>
+          {% for col, cnt in dataset.missing_values.items %}
+          <li class="flex justify-between mb-2">
+            <span class="text-sm">{{ col }}</span>
+            <span class="font-medium">{{ cnt }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="text-muted text-sm">No missing values detected.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="card mb-6">
+  <div class="card-header"><h2 class="card-title">Column Mapping</h2></div>
+  <div class="card-body">
+    <form method="post" action="{% url 'ml_engine:dataset_remap' dataset.pk %}">
+      {% csrf_token %}
+      <div class="grid" style="grid-template-columns:repeat(3,1fr);gap:1rem;">
+        <div class="form-group mb-0">
+          <label class="form-label">Text column</label>
+          <select name="text_column" class="form-control">
+            <option value="">— select —</option>
+            {% for col in dataset.column_names %}
+              <option value="{{ col }}" {% if dataset.text_column == col %}selected{% endif %}>{{ col }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group mb-0">
+          <label class="form-label">Title column (optional)</label>
+          <select name="title_column" class="form-control">
+            <option value="">— none —</option>
+            {% for col in dataset.column_names %}
+              <option value="{{ col }}" {% if dataset.title_column == col %}selected{% endif %}>{{ col }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group mb-0">
+          <label class="form-label">Label column</label>
+          <select name="label_column" class="form-control">
+            <option value="">— select —</option>
+            {% for col in dataset.column_names %}
+              <option value="{{ col }}" {% if dataset.label_column == col %}selected{% endif %}>{{ col }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      {% if suggested %}
+      <p class="form-hint mt-2">Suggested: text={{ suggested.text_column|default:"?" }}, title={{ suggested.title_column|default:"—" }}, label={{ suggested.label_column|default:"?" }}</p>
+      {% endif %}
+      <button type="submit" class="btn btn-secondary btn-sm mt-3">Update Mapping &amp; Re-validate</button>
+    </form>
+  </div>
+</div>
+
+<div class="card mb-6">
+  <div class="card-header"><h2 class="card-title">Available Columns</h2></div>
+  <div class="card-body">
+    <div class="flex gap-2" style="flex-wrap:wrap;">
+      {% for col in dataset.column_names %}
+        <span class="badge badge-default">{{ col }}</span>
+      {% empty %}
+        <span class="text-muted text-sm">No columns.</span>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header"><h2 class="card-title">Preview (first rows)</h2></div>
+  <div class="card-body" style="padding:0;">
+    {% if preview %}
+    <div class="table-wrapper">
+      <table class="table">
+        <thead>
+          <tr>
+            {% for col in dataset.column_names %}
+              <th>{{ col }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in preview %}
+          <tr>
+            {% for cell in row %}
+              <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ cell }}">{{ cell }}</td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state" style="padding:2rem;">
+      <p class="text-muted text-sm">Preview unavailable.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

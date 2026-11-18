@@ -1,0 +1,487 @@
+{% extends 'base.html' %}
+
+{% block title %}About Project{% endblock %}
+
+{% block extra_css %}
+<style>
+  .about-layout {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 1.5rem;
+    align-items: start;
+  }
+  .about-nav {
+    position: sticky;
+    top: calc(var(--topbar-height) + 1rem);
+    background: #fff;
+    border: 1px solid var(--color-gray-200);
+    border-radius: var(--border-radius-lg);
+    padding: 1rem 0.75rem;
+    box-shadow: var(--shadow-sm);
+  }
+  .about-nav a {
+    display: block;
+    padding: 0.4rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.8125rem;
+    color: var(--color-gray-600);
+    margin-bottom: 0.15rem;
+  }
+  .about-nav a:hover { background: var(--color-gray-100); color: var(--color-gray-900); }
+  .about-section { scroll-margin-top: calc(var(--topbar-height) + 1rem); margin-bottom: 2rem; }
+  .about-section h2 {
+    font-size: 1.25rem; font-weight: 700; margin-bottom: 1rem;
+    padding-bottom: 0.5rem; border-bottom: 1px solid var(--color-gray-200);
+  }
+  .about-section h3 { font-size: 1rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
+  .about-section p, .about-section li {
+    color: var(--color-gray-600); line-height: 1.7; font-size: 0.9375rem;
+  }
+  .about-section ul { list-style: disc; padding-left: 1.25rem; margin-bottom: 0.75rem; }
+  .concept-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem;
+  }
+  .concept-card {
+    background: #fff; border: 1px solid var(--color-gray-200); border-radius: var(--border-radius);
+    padding: 1rem 1.1rem; box-shadow: var(--shadow-sm);
+  }
+  .concept-card h4 {
+    font-size: 0.9375rem; font-weight: 600; margin-bottom: 0.4rem;
+    display: flex; align-items: center; gap: 0.4rem;
+  }
+  .concept-card p { font-size: 0.875rem; margin: 0; }
+  .concept-card .example {
+    margin-top: 0.5rem; padding: 0.5rem 0.65rem; background: var(--color-gray-50);
+    border-radius: 6px; font-size: 0.8125rem; color: var(--color-gray-700);
+    font-family: var(--font-mono);
+  }
+  .workflow {
+    display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; justify-content: center;
+    padding: 1.25rem; background: var(--color-gray-50); border-radius: var(--border-radius-lg);
+    border: 1px solid var(--color-gray-200);
+  }
+  .workflow-step {
+    background: #fff; border: 1px solid var(--color-gray-300); border-radius: 8px;
+    padding: 0.65rem 0.9rem; font-size: 0.8125rem; font-weight: 600; text-align: center;
+    min-width: 100px; box-shadow: var(--shadow-sm);
+  }
+  .workflow-arrow { color: var(--color-gray-400); font-size: 1.1rem; }
+  .arch-box {
+    border: 1px solid var(--color-gray-300); border-radius: 8px; padding: 0.75rem 1rem;
+    background: #fff; text-align: center; font-size: 0.8125rem; font-weight: 600;
+  }
+  .arch-row {
+    display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; align-items: center;
+    margin-bottom: 0.5rem;
+  }
+  .arch-sub {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 0.75rem;
+  }
+  .pipe {
+    border: 1px dashed var(--color-gray-300); border-radius: 8px; padding: 0.75rem;
+    background: var(--color-gray-50);
+  }
+  .pipe h4 { font-size: 0.8125rem; margin-bottom: 0.5rem; text-align: center; }
+  .tech-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem;
+  }
+  .tech-item {
+    border: 1px solid var(--color-gray-200); border-radius: 8px; padding: 0.85rem;
+    background: #fff;
+  }
+  .tech-item strong { display: block; font-size: 0.875rem; margin-bottom: 0.25rem; }
+  .tech-item span { font-size: 0.8125rem; color: var(--color-gray-600); line-height: 1.5; }
+  .algo-card {
+    border: 1px solid var(--color-gray-200); border-radius: var(--border-radius-lg);
+    padding: 1.25rem; margin-bottom: 1rem; background: #fff;
+  }
+  .algo-card h3 { margin-top: 0; }
+  .disclaimer-box {
+    border-left: 4px solid var(--color-warning);
+    background: var(--color-warning-bg);
+    padding: 1rem 1.25rem; border-radius: 0 8px 8px 0;
+  }
+  .disclaimer-box li { color: var(--color-gray-700); }
+  @media (max-width: 900px) {
+    .about-layout { grid-template-columns: 1fr; }
+    .about-nav { position: static; display: flex; flex-wrap: wrap; gap: 0.25rem; }
+    .about-nav a { margin: 0; }
+    .arch-sub { grid-template-columns: 1fr; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="about-layout">
+  <nav class="about-nav no-print" aria-label="About sections">
+    <a href="#overview">Overview</a>
+    <a href="#how-it-works">How It Works</a>
+    <a href="#nlp">NLP Concepts</a>
+    <a href="#algorithms">ML Algorithms</a>
+    <a href="#datasets">Datasets</a>
+    <a href="#tech-stack">Technology Stack</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#team">Team</a>
+    <a href="#limitations">Limitations</a>
+  </nav>
+
+  <div>
+    <section class="about-section" id="overview">
+      <div class="card"><div class="card-body">
+          <h2>Project Overview</h2>
+          <p class="mb-3">
+            <strong>Fake News Detection and News Sentiment Analysis System</strong> is a research-oriented
+            web application that applies natural language processing (NLP) and classical machine learning
+            to news text. It estimates whether an article resembles patterns associated with real or fake
+            news in its training data, and classifies the linguistic polarity of the text as positive,
+            negative, or neutral.
+          </p>
+          <h3>Problem Statement</h3>
+          <p class="mb-3">
+            Online news spreads quickly, and readers often lack time or tools to assess both the stylistic
+            credibility signals of an article and its emotional tone. Manual review does not scale.
+            Automated assistance can flag patterns learned from labelled corpora, while remaining transparent
+            that such outputs are statistical estimates—not verified facts.
+          </p>
+          <h3>Motivation</h3>
+          <p class="mb-3">
+            The project demonstrates an end-to-end applied NLP pipeline: dataset management, preprocessing,
+            feature extraction, model training, evaluation, interactive prediction, history tracking, and
+            analytics—using open-source libraries without paid APIs or proprietary cloud ML services.
+          </p>
+          <h3>Objectives</h3>
+          <ul>
+            <li>Build a working fake-news classifier (Real / Fake) using TF-IDF and optional Word2Vec features.</li>
+            <li>Build a three-class sentiment classifier (Positive / Negative / Neutral).</li>
+            <li>Support combined analysis of the same article through both pipelines.</li>
+            <li>Persist analyses, expose history search/filters, and report usage and evaluation metrics.</li>
+            <li>Provide educational documentation of NLP and ML concepts used in the system.</li>
+          </ul>
+          <h3>Scope</h3>
+          <ul>
+            <li><strong>In scope:</strong> English news-style text, CSV dataset upload, scikit-learn / Gensim models, SQLite history, Chart.js analytics, admin dataset and model management.</li>
+            <li><strong>Out of scope:</strong> Live web scraping of news sites, source verification, deep learning transformers, user accounts/authentication, multilingual models.</li>
+          </ul>
+          <h3>Applications</h3>
+          <ul>
+            <li>Academic demonstration of text classification pipelines.</li>
+            <li>Classroom labs on preprocessing, TF-IDF, and evaluation metrics.</li>
+            <li>Internal research prototypes for comparing classical ML algorithms on labelled news corpora.</li>
+          </ul>
+      </div></div>
+    </section>
+
+    <section class="about-section" id="how-it-works">
+      <div class="card"><div class="card-body">
+          <h2>How It Works</h2>
+          <p class="mb-4">
+            A single news article flows through a fixed pipeline. Fake-news and sentiment models may share
+            preprocessing ideas but use task-specific configurations (for example, sentiment keeps negation words).
+          </p>
+          <div class="workflow mb-4">
+            <div class="workflow-step">1. Input<br><span style="font-weight:400;font-size:0.75rem;">Headline + text</span></div>
+            <span class="workflow-arrow">→</span>
+            <div class="workflow-step">2. Clean<br><span style="font-weight:400;font-size:0.75rem;">URLs, HTML, case</span></div>
+            <span class="workflow-arrow">→</span>
+            <div class="workflow-step">3. Tokens<br><span style="font-weight:400;font-size:0.75rem;">Stopwords / stem</span></div>
+            <span class="workflow-arrow">→</span>
+            <div class="workflow-step">4. Features<br><span style="font-weight:400;font-size:0.75rem;">TF-IDF / W2V</span></div>
+            <span class="workflow-arrow">→</span>
+            <div class="workflow-step">5. Model<br><span style="font-weight:400;font-size:0.75rem;">NB / LR</span></div>
+            <span class="workflow-arrow">→</span>
+            <div class="workflow-step">6. Results<br><span style="font-weight:400;font-size:0.75rem;">Label + scores</span></div>
+            <span class="workflow-arrow">→</span>
+            <div class="workflow-step">7. History<br><span style="font-weight:400;font-size:0.75rem;">SQLite store</span></div>
+          </div>
+          <ol style="padding-left:1.25rem;color:var(--color-gray-600);line-height:1.8;font-size:0.9375rem;">
+            <li><strong>User enters</strong> a headline and/or article body (or uploads a <code>.txt</code> file).</li>
+            <li><strong>Validation</strong> rejects empty or extremely short inputs.</li>
+            <li><strong>Preprocessing</strong> lowercases text, removes URLs and HTML, normalizes whitespace, tokenizes, optionally removes stopwords, and applies stemming or lemmatization.</li>
+            <li><strong>Feature extraction</strong> maps cleaned text to TF-IDF vectors (unigrams/bigrams) or averaged Word2Vec embeddings, using extractors fitted only on training data.</li>
+            <li><strong>Classification</strong> runs the selected trained model (Naïve Bayes or Logistic Regression for TF-IDF; Logistic Regression for Word2Vec document vectors).</li>
+            <li><strong>Output</strong> shows the predicted label, class probabilities, model name, and processing time, with an explicit disclaimer.</li>
+            <li><strong>Persistence</strong> stores successful analyses in SQLite for history, dashboard statistics, and reports.</li>
+          </ol>
+      </div></div>
+    </section>
+
+    <section class="about-section" id="nlp">
+      <div class="card"><div class="card-body">
+          <h2>NLP Concepts</h2>
+          <p class="mb-4">
+            Natural Language Processing (NLP) is the field of methods that enable computers to work with
+            human language. This project focuses on classical, interpretable techniques suitable for
+            classroom and research prototypes.
+          </p>
+          <div class="concept-grid">
+            <div class="concept-card">
+              <h4><i data-lucide="type" style="width:16px;height:16px;"></i> Text Preprocessing</h4>
+              <p>Standardizes raw text before modelling: casing, noise removal, and normalization so similar words map more consistently.</p>
+              <div class="example">"The COVID-19 update — see https://ex.com" → "covid update"</div>
+            </div>
+            <div class="concept-card">
+              <h4><i data-lucide="scissors" style="width:16px;height:16px;"></i> Tokenization</h4>
+              <p>Splits text into units (usually words) that models can count or embed.</p>
+              <div class="example">"not good news" → ["not", "good", "news"]</div>
+            </div>
+            <div class="concept-card">
+              <h4><i data-lucide="filter" style="width:16px;height:16px;"></i> Stopword Removal</h4>
+              <p>Drops very common words (e.g. “the”, “is”) that often add little class signal. Sentiment mode keeps negation cues such as “not” and “never”.</p>
+            </div>
+            <div class="concept-card">
+              <h4><i data-lucide="git-branch" style="width:16px;height:16px;"></i> Stemming</h4>
+              <p>Heuristic shortening of words to a root form (Porter stemmer). Fast but can be crude.</p>
+              <div class="example">studies, studying → studi</div>
+            </div>
+            <div class="concept-card">
+              <h4><i data-lucide="book-open" style="width:16px;height:16px;"></i> Lemmatization</h4>
+              <p>Maps words to dictionary lemmas using linguistic knowledge (WordNet). More accurate than stemming, slightly heavier.</p>
+              <div class="example">studies → study · better → good</div>
+            </div>
+            <div class="concept-card">
+              <h4><i data-lucide="hash" style="width:16px;height:16px;"></i> TF-IDF</h4>
+              <p>Term Frequency–Inverse Document Frequency weights words that are frequent in a document but rare across the corpus. Supports unigrams and bigrams.</p>
+            </div>
+            <div class="concept-card">
+              <h4><i data-lucide="network" style="width:16px;height:16px;"></i> Word2Vec</h4>
+              <p>Learns dense vector representations of words from context. Document vectors are formed by averaging available word vectors; unknown words are skipped safely.</p>
+            </div>
+            <div class="concept-card">
+              <h4><i data-lucide="box" style="width:16px;height:16px;"></i> Feature Extraction</h4>
+              <p>Conversion of cleaned text into numerical inputs for classifiers. Vectorizers are fitted on training data only to avoid leakage.</p>
+            </div>
+            <div class="concept-card">
+              <h4><i data-lucide="tags" style="width:16px;height:16px;"></i> Text Classification</h4>
+              <p>Assigning discrete labels to documents. Here: Real/Fake for credibility-style patterns, and Positive/Negative/Neutral for sentiment.</p>
+            </div>
+            <div class="concept-card">
+              <h4><i data-lucide="smile" style="width:16px;height:16px;"></i> Sentiment Analysis</h4>
+              <p>Estimates linguistic polarity of text. It does not measure factual truth or source reliability.</p>
+            </div>
+          </div>
+      </div></div>
+    </section>
+
+    <section class="about-section" id="algorithms">
+      <div class="card"><div class="card-body">
+          <h2>Machine Learning Algorithms</h2>
+          <div class="algo-card">
+            <h3>Multinomial Naïve Bayes</h3>
+            <p><strong>Introduction.</strong> A probabilistic classifier based on Bayes’ theorem with a strong independence assumption between features. Multinomial NB is well suited to discrete counts such as TF-IDF or raw term frequencies.</p>
+            <p><strong>How it works.</strong> It estimates the probability of each class given the feature vector by combining per-feature likelihoods with the class prior, then selecting the maximum a posteriori class.</p>
+            <p><strong>Role in this project.</strong> Used for fake-news detection and optional sentiment classification on TF-IDF features. Not used with Word2Vec vectors because embeddings can contain negative values incompatible with Multinomial NB.</p>
+            <p><strong>Advantages.</strong> Fast training and prediction; strong baseline on sparse text; few hyperparameters (e.g. smoothing α).</p>
+            <p><strong>Limitations.</strong> Independence assumption is unrealistic; can underperform when features are highly correlated; limited capacity versus denser models on complex semantics.</p>
+          </div>
+          <div class="algo-card">
+            <h3>Logistic Regression</h3>
+            <p><strong>Introduction.</strong> A linear classifier that models the log-odds of class membership as a weighted sum of features, mapped through a logistic (or softmax for multiclass) function.</p>
+            <p><strong>How it works.</strong> Coefficients are learned by maximizing likelihood with regularization (L2 by default in this project). Softmax extends the same idea to three sentiment classes.</p>
+            <p><strong>Role in this project.</strong> Primary classifier for TF-IDF fake-news and three-class sentiment models; also used on averaged Word2Vec document vectors.</p>
+            <p><strong>Advantages.</strong> Interpretable weights; reliable probabilities when calibrated; handles many sparse features with regularization; works with dense embeddings.</p>
+            <p><strong>Limitations.</strong> Decision boundary is linear in feature space; performance depends heavily on feature quality; may need careful regularization on small datasets.</p>
+          </div>
+          <div class="algo-card">
+            <h3>Word2Vec-based Document Classification</h3>
+            <p><strong>Introduction.</strong> Combines unsupervised word embeddings with a supervised classifier. Each document is represented as the mean of its word vectors.</p>
+            <p><strong>How it works.</strong> Word2Vec (Gensim) is trained on the training corpus. At inference, tokens present in the vocabulary are averaged; empty or all-OOV documents become zero vectors. Logistic Regression then classifies the dense vector.</p>
+            <p><strong>Role in this project.</strong> Alternative fake-news pathway to compare against TF-IDF + NB/LR under the same train/test split when a Word2Vec model has been trained and registered.</p>
+            <p><strong>Advantages.</strong> Captures distributional similarity; fixed-size vectors independent of vocabulary size; can generalize to related wording.</p>
+            <p><strong>Limitations.</strong> Mean pooling loses word order; rare words and domain shift hurt quality; requires enough text to train meaningful embeddings; not paired with Multinomial NB here.</p>
+          </div>
+      </div></div>
+    </section>
+
+    <section class="about-section" id="datasets">
+      <div class="card"><div class="card-body">
+          <h2>Dataset Information</h2>
+          <p class="mb-3">
+            Dataset metadata below is loaded from the application database for datasets that have been
+            uploaded through Dataset Management. Sources and statistics are not invented—if a field is
+            empty, it was not recorded at upload time.
+          </p>
+          {% if datasets %}
+          <div class="table-wrapper">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Type</th>
+                  <th>Status</th>
+                  <th>Rows</th>
+                  <th>Cleaned</th>
+                  <th>Columns</th>
+                  <th>Classes</th>
+                  <th>Source file</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for d in datasets %}
+                <tr>
+                  <td>{{ d.name }}</td>
+                  <td>{{ d.get_dataset_type_display }}</td>
+                  <td><span class="badge badge-default">{{ d.get_status_display }}</span></td>
+                  <td>{{ d.original_rows }}</td>
+                  <td>{{ d.cleaned_rows }}</td>
+                  <td class="text-sm">{% if d.column_names %}{{ d.column_names|join:", " }}{% else %}—{% endif %}</td>
+                  <td class="text-sm">
+                    {% if d.class_distribution %}
+                      {% for k,v in d.class_distribution.items %}{{ k }}: {{ v }}{% if not forloop.last %}; {% endif %}{% endfor %}
+                    {% else %}—{% endif %}
+                  </td>
+                  <td class="text-sm">{{ d.original_filename|default:"—" }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <p class="text-sm text-muted mt-2">
+            Training/testing splits are chosen at training time (stratified when class counts allow) and
+            stored with each model version in the registry—not on the dataset row itself.
+          </p>
+          {% else %}
+          <div class="empty-state" style="padding:2rem;">
+            <div class="empty-state-title">No datasets uploaded yet</div>
+            <div class="empty-state-text">
+              Upload labelled CSV files via
+              <a href="{% url 'ml_engine:dataset_list' %}">Dataset Management</a>.
+              Public corpora such as Kaggle “Fake and Real News” can be used; always document the true source when you import data.
+            </div>
+          </div>
+          {% endif %}
+          {% if active_fake or active_sent %}
+          <h3 class="mt-4">Active trained models</h3>
+          <ul>
+            {% if active_fake %}
+            <li>
+              Fake news: <strong>{{ active_fake.name }}</strong>
+              ({{ active_fake.algorithm }} · {{ active_fake.feature_method }} ·
+              dataset: {{ active_fake.dataset_name|default:"—" }} ·
+              test n={{ active_fake.test_size }})
+            </li>
+            {% endif %}
+            {% if active_sent %}
+            <li>
+              Sentiment: <strong>{{ active_sent.name }}</strong>
+              ({{ active_sent.algorithm }} · {{ active_sent.feature_method }} ·
+              dataset: {{ active_sent.dataset_name|default:"—" }} ·
+              test n={{ active_sent.test_size }})
+            </li>
+            {% endif %}
+          </ul>
+          {% endif %}
+      </div></div>
+    </section>
+
+    <section class="about-section" id="tech-stack">
+      <div class="card"><div class="card-body">
+          <h2>Technology Stack</h2>
+          <div class="tech-grid">
+            <div class="tech-item"><strong>HTML5</strong><span>Semantic structure for forms, results, and educational content.</span></div>
+            <div class="tech-item"><strong>CSS3</strong><span>Design system: layout, cards, tables, responsive sidebar.</span></div>
+            <div class="tech-item"><strong>JavaScript</strong><span>Sidebar behaviour, Chart.js charts, copy/print helpers (no SPA framework).</span></div>
+            <div class="tech-item"><strong>Python</strong><span>Primary language for backend services and ML pipelines.</span></div>
+            <div class="tech-item"><strong>Django</strong><span>Web framework: routing, templates, forms, admin, ORM.</span></div>
+            <div class="tech-item"><strong>SQLite</strong><span>Embedded database for analysis history and dataset metadata.</span></div>
+            <div class="tech-item"><strong>NLTK</strong><span>Tokenization, stopwords, Porter stemmer, WordNet lemmatizer.</span></div>
+            <div class="tech-item"><strong>Scikit-learn</strong><span>TF-IDF, Naïve Bayes, Logistic Regression, metrics, train/test split.</span></div>
+            <div class="tech-item"><strong>Gensim</strong><span>Word2Vec embedding training and inference.</span></div>
+            <div class="tech-item"><strong>Pandas</strong><span>CSV loading, column inspection, dataset cleaning tables.</span></div>
+            <div class="tech-item"><strong>NumPy</strong><span>Numerical arrays for embeddings and feature matrices.</span></div>
+            <div class="tech-item"><strong>Joblib</strong><span>Serialize/load fitted models and vectorizers on disk.</span></div>
+            <div class="tech-item"><strong>Chart.js</strong><span>Interactive doughnut, line, and bar charts in the browser.</span></div>
+            <div class="tech-item"><strong>ReportLab</strong><span>Server-side PDF report generation for analytics exports.</span></div>
+          </div>
+      </div></div>
+    </section>
+
+    <section class="about-section" id="architecture">
+      <div class="card"><div class="card-body">
+          <h2>System Architecture</h2>
+          <p class="mb-3">
+            The UI is server-rendered Django templates. ML logic lives in the <code>ml_engine</code> services
+            layer; models are files under <code>media/models/</code>, not inside SQLite.
+          </p>
+          <div class="arch-row">
+            <div class="arch-box">Frontend<br><span style="font-weight:400">HTML · CSS · JS · Chart.js</span></div>
+            <span class="workflow-arrow">→</span>
+            <div class="arch-box">Django Backend<br><span style="font-weight:400">Views · Templates · ORM</span></div>
+            <span class="workflow-arrow">→</span>
+            <div class="arch-box">NLP Preprocessing<br><span style="font-weight:400">NLTK pipeline</span></div>
+            <span class="workflow-arrow">→</span>
+            <div class="arch-box">Feature Extraction<br><span style="font-weight:400">TF-IDF · Word2Vec</span></div>
+          </div>
+          <div class="arch-row">
+            <div class="arch-box">ML Models<br><span style="font-weight:400">NB · LR · W2V+LR</span></div>
+            <span class="workflow-arrow">→</span>
+            <div class="arch-box">Prediction Results<br><span style="font-weight:400">Labels · Probabilities</span></div>
+            <span class="workflow-arrow">→</span>
+            <div class="arch-box">SQLite History<br><span style="font-weight:400">Analysis records</span></div>
+            <span class="workflow-arrow">→</span>
+            <div class="arch-box">Dashboard & Reports<br><span style="font-weight:400">Aggregates · Exports</span></div>
+          </div>
+          <div class="arch-sub">
+            <div class="pipe">
+              <h4>Fake News Pipeline</h4>
+              <p style="font-size:0.8125rem;color:var(--color-gray-600);text-align:center;margin:0;">
+                Input → Preprocess (fake config) → TF-IDF or W2V → NB / LR → Real | Fake → History
+              </p>
+            </div>
+            <div class="pipe">
+              <h4>Sentiment Pipeline</h4>
+              <p style="font-size:0.8125rem;color:var(--color-gray-600);text-align:center;margin:0;">
+                Input → Preprocess (keep negations) → TF-IDF → LR / NB → Pos | Neg | Neu → History
+              </p>
+            </div>
+          </div>
+          <p class="text-sm text-muted mt-3">
+            Combined Analysis runs both pipelines on the same text, merges results in the UI, and stores a
+            single history row so dashboard totals are not double-counted.
+          </p>
+      </div></div>
+    </section>
+
+    <section class="about-section" id="team">
+      <div class="card"><div class="card-body">
+          <h2>Team Information</h2>
+          <p class="text-sm text-muted mb-3">Placeholders — replace with actual project details.</p>
+          <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;">
+            {% for m in team.members %}
+            <div class="concept-card">
+              <h4>{{ m.name }}</h4>
+              <p>{{ m.role }}</p>
+            </div>
+            {% endfor %}
+          </div>
+          <dl class="mt-4" style="font-size:0.9375rem;color:var(--color-gray-600);line-height:1.8;">
+            <div><strong>Project Guide:</strong> {{ team.guide }}</div>
+            <div><strong>College:</strong> {{ team.college }}</div>
+            <div><strong>Department:</strong> {{ team.department }}</div>
+            <div><strong>Academic Year:</strong> {{ team.academic_year }}</div>
+          </dl>
+      </div></div>
+    </section>
+
+    <section class="about-section" id="limitations">
+      <div class="card"><div class="card-body">
+          <h2>Limitations and Disclaimer</h2>
+          <div class="disclaimer-box">
+            <ul style="margin:0;">
+              <li>Predictions depend on the quality, size, balance, and domain of the training data.</li>
+              <li>Machine learning models can and do make incorrect predictions on unseen text.</li>
+              <li>Sentiment scores reflect linguistic polarity patterns—not whether a claim is true.</li>
+              <li>Fake/Real labels reflect similarity to training examples—not independent fact verification.</li>
+              <li>The system does not check sources, authors, timestamps, or external knowledge bases.</li>
+              <li>Outputs must not replace manual fact-checking or professional journalistic review.</li>
+              <li>Small sample datasets yield unstable metrics; treat demo accuracies as illustrative only.</li>
+            </ul>
+          </div>
+          <p class="mt-3" style="color:var(--color-gray-600);font-size:0.9375rem;line-height:1.7;">
+            By using this application you acknowledge that all model outputs are statistical estimates
+            derived from historical labelled text and are provided for research and educational purposes.
+          </p>
+      </div></div>
+    </section>
+  </div>
+</div>
+{% endblock %}

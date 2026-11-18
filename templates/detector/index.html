@@ -1,0 +1,218 @@
+{% extends 'base.html' %}
+
+{% block title %}Fake News Detection{% endblock %}
+
+{% block extra_css %}
+<style>
+  .result-verdict {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 1.125rem;
+  }
+  .verdict-real { background: var(--color-success-bg); color: var(--color-success); }
+  .verdict-fake { background: var(--color-error-bg); color: var(--color-error); }
+  .prob-bar {
+    height: 8px;
+    background: var(--color-gray-200);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 0.25rem;
+  }
+  .prob-fill {
+    height: 100%;
+    border-radius: 4px;
+  }
+  .disclaimer {
+    font-size: 0.8125rem;
+    color: var(--color-gray-500);
+    border-left: 3px solid var(--color-gray-300);
+    padding-left: 0.75rem;
+    margin-top: 1rem;
+    line-height: 1.5;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+  <p class="text-muted text-sm">Classify news as Real or Fake using trained machine learning models.</p>
+</div>
+
+{% if not active_model and not models %}
+<div class="alert alert-warning mb-4">
+  <div>
+    <strong>No trained models available.</strong>
+    Upload a labelled dataset and
+    <a href="{% url 'ml_engine:model_training' %}">train a model</a>
+    before running detection.
+    Suitable public datasets include
+    <a href="https://www.kaggle.com/datasets/clmentbisaillon/fake-and-real-news-dataset" target="_blank" rel="noopener">Fake and Real News (Kaggle)</a>.
+  </div>
+</div>
+{% endif %}
+
+<div class="grid" style="grid-template-columns:1fr 1fr;gap:1.5rem;">
+  <!-- Input -->
+  <div class="card">
+    <div class="card-header"><h2 class="card-title">News Input</h2></div>
+    <div class="card-body">
+      <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="form-group">
+          <label class="form-label" for="headline">News Headline</label>
+          <input type="text" id="headline" name="headline" class="form-control"
+                 value="{{ form.headline }}" placeholder="Optional headline">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="content">News Content</label>
+          <textarea id="content" name="content" class="form-control" rows="10"
+                    placeholder="Paste the news article text here…">{{ form.content }}</textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="txt_file">Or upload a .txt file</label>
+          <input type="file" id="txt_file" name="txt_file" class="form-control" accept=".txt">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="model_id">Model</label>
+          <select name="model_id" id="model_id" class="form-control">
+            {% for m in models %}
+              <option value="{{ m.model_id }}"
+                {% if form.model_id == m.model_id or not form.model_id and m.is_active %}selected{% endif %}>
+                {{ m.name }} (acc={{ m.metrics.accuracy|default:"?" }})
+                {% if m.is_active %}★{% endif %}
+              </option>
+            {% empty %}
+              <option value="">No models trained</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label style="display:flex;align-items:center;gap:0.5rem;font-size:0.875rem;cursor:pointer;">
+            <input type="checkbox" name="compare" {% if form.compare %}checked{% endif %}>
+            Compare all trained models
+          </label>
+        </div>
+        <div class="flex gap-2">
+          <button type="submit" name="action" value="detect" class="btn btn-primary"
+                  {% if not models %}disabled{% endif %}>
+            <i data-lucide="shield-alert" style="width:16px;height:16px;"></i>
+            Detect News
+          </button>
+          <button type="submit" name="action" value="clear" class="btn btn-secondary">Clear</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div class="card">
+    <div class="card-header"><h2 class="card-title">Detection Result</h2></div>
+    <div class="card-body">
+      {% if result %}
+        <div class="mb-4">
+          {% if result.label == 'real' %}
+            <span class="result-verdict verdict-real">
+              <i data-lucide="check-circle" style="width:22px;height:22px;"></i>
+              Real
+            </span>
+          {% else %}
+            <span class="result-verdict verdict-fake">
+              <i data-lucide="alert-triangle" style="width:22px;height:22px;"></i>
+              Fake
+            </span>
+          {% endif %}
+        </div>
+
+        <div class="stats-grid mb-4" style="grid-template-columns:1fr 1fr;">
+          <div class="stat-card" style="padding:1rem;">
+            <div class="stat-label">Confidence</div>
+            <div class="stat-value" style="font-size:1.25rem;">{{ result.confidence }}</div>
+          </div>
+          <div class="stat-card" style="padding:1rem;">
+            <div class="stat-label">Processing</div>
+            <div class="stat-value" style="font-size:1.25rem;">{{ result.processing_time_sec }}s</div>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <div class="flex justify-between text-sm mb-1">
+            <span>Real probability</span>
+            <span class="font-medium">{{ result.probabilities.real|default:"0" }}</span>
+          </div>
+          <div class="prob-bar">
+            <div class="prob-fill" style="width:{% widthratio result.probabilities.real|default:0 1 100 %}%;background:var(--color-success);"></div>
+          </div>
+        </div>
+        <div class="mb-4">
+          <div class="flex justify-between text-sm mb-1">
+            <span>Fake probability</span>
+            <span class="font-medium">{{ result.probabilities.fake|default:"0" }}</span>
+          </div>
+          <div class="prob-bar">
+            <div class="prob-fill" style="width:{% widthratio result.probabilities.fake|default:0 1 100 %}%;background:var(--color-error);"></div>
+          </div>
+        </div>
+
+        <p class="text-sm text-muted mb-1">
+          Model: <strong>{{ result.model_name }}</strong>
+          ({{ result.algorithm }} / {{ result.feature_method }})
+        </p>
+        <p class="text-xs text-muted">Analysed: {{ result.analyzed_at|slice:":19" }} UTC</p>
+
+        <p class="disclaimer">{{ result.message }}</p>
+
+        <a href="{% url 'detector:index' %}" class="btn btn-secondary btn-sm mt-4">Analyse Another Article</a>
+
+      {% elif compare_results %}
+        <p class="text-sm font-medium mb-3">Comparison across {{ compare_results|length }} model(s)</p>
+        <div class="table-wrapper">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Model</th>
+                <th>Prediction</th>
+                <th>Confidence</th>
+                <th>Real</th>
+                <th>Fake</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in compare_results %}
+              <tr>
+                <td class="text-sm">{{ r.model_name }}<div class="text-xs text-muted">{{ r.algorithm }}</div></td>
+                <td>
+                  {% if r.label == 'real' %}
+                    <span class="badge badge-success">Real</span>
+                  {% else %}
+                    <span class="badge badge-error">Fake</span>
+                  {% endif %}
+                </td>
+                <td>{{ r.confidence }}</td>
+                <td>{{ r.probabilities.real|default:"—" }}</td>
+                <td>{{ r.probabilities.fake|default:"—" }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <p class="disclaimer">
+          Machine learning predictions are estimates based on patterns learned from training data.
+          They do not independently verify the factual accuracy of an article.
+        </p>
+      {% else %}
+        <div class="empty-state">
+          <div class="empty-state-icon">
+            <i data-lucide="file-search" style="width:48px;height:48px;"></i>
+          </div>
+          <div class="empty-state-title">No result yet</div>
+          <div class="empty-state-text">Submit news text to get a Real / Fake prediction from a trained model.</div>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
