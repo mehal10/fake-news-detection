@@ -1,3 +1,4 @@
+
 """
 Django settings for news_analysis project.
 Fake News Detection and News Sentiment Analysis System
@@ -8,34 +9,72 @@ import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# ---------------------------------------------------------------------------
-# Security — override via environment variables in production
-# ---------------------------------------------------------------------------
+
+# ============================================================
+# SECURITY CONFIGURATION
+# ============================================================
+
 SECRET_KEY = os.environ.get(
     'DJANGO_SECRET_KEY',
     'django-insecure-news-analysis-dev-key-change-in-production-2026',
 )
 
-# Default True for local development. Set DJANGO_DEBUG=0 in production.
-DEBUG = os.environ.get('DJANGO_DEBUG', '1') not in ('0', 'false', 'False')
+DEBUG = os.environ.get('DJANGO_DEBUG', '0').lower() in (
+    '1', 'true', 'yes'
+)
 
 ALLOWED_HOSTS = [
-    h.strip()
-    for h in os.environ.get('DJANGO_ALLOWED_HOSTS', '127.0.0.1,localhost,testserver').split(',')
-    if h.strip()
+    host.strip()
+    for host in os.environ.get(
+        'DJANGO_ALLOWED_HOSTS',
+        '127.0.0.1,localhost,testserver,fake-news-detection-vri2.onrender.com'
+    ).split(',')
+    if host.strip()
 ]
-if DEBUG:
-    for h in ('127.0.0.1', 'localhost', 'testserver'):
-        if h not in ALLOWED_HOSTS:
-            ALLOWED_HOSTS.append(h)
 
-# Production hardening (active when DEBUG is False)
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get(
+        'DJANGO_CSRF_TRUSTED_ORIGINS',
+        'https://fake-news-detection-vri2.onrender.com'
+    ).split(',')
+    if origin.strip()
+]
+
+if DEBUG:
+    if 'testserver' not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append('testserver')
+
+
+# ============================================================
+# PRODUCTION SECURITY
+# ============================================================
+
 if not DEBUG:
-    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_SSL_REDIRECT = os.environ.get(
+        'DJANGO_SSL_REDIRECT', '1'
+    ).lower() in ('1', 'true', 'yes')
+
+    SECURE_PROXY_SSL_HEADER = (
+        'HTTP_X_FORWARDED_PROTO',
+        'https'
+    )
+
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+
     SECURE_CONTENT_TYPE_NOSNIFF = True
-    SESSION_COOKIE_SECURE = os.environ.get('DJANGO_SSL', '0') in ('1', 'true', 'True')
-    CSRF_COOKIE_SECURE = SESSION_COOKIE_SECURE
     X_FRAME_OPTIONS = 'DENY'
+
+    SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
+
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+
+
+# ============================================================
+# APPLICATIONS
+# ============================================================
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -44,6 +83,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
+    # Project applications
     'core',
     'dashboard',
     'detector',
@@ -54,9 +95,16 @@ INSTALLED_APPS = [
     'ml_engine',
 ]
 
+
+# ============================================================
+# MIDDLEWARE
+# ============================================================
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # Serve static files in production
+
+    'whitenoise.middleware.WhiteNoiseMiddleware',
+
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -65,13 +113,30 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+
+# ============================================================
+# URL CONFIGURATION
+# ============================================================
+
 ROOT_URLCONF = 'news_analysis.urls'
+
+WSGI_APPLICATION = 'news_analysis.wsgi.application'
+
+
+# ============================================================
+# TEMPLATES
+# ============================================================
 
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'],
+
+        'DIRS': [
+            BASE_DIR / 'templates',
+        ],
+
         'APP_DIRS': True,
+
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.request',
@@ -83,68 +148,136 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'news_analysis.wsgi.application'
 
-# Persist SQLite under the project tree (not /tmp)
-# SQLite database file (override with DJANGO_DB_PATH)
-_DB_PATH = Path(os.environ.get('DJANGO_DB_PATH', str(BASE_DIR / 'db.sqlite3')))
-try:
-    _DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    # Probe journal support; some networked volumes break SQLite commits
-    import sqlite3 as _sqlite3
-    _c = _sqlite3.connect(str(_DB_PATH))
-    _c.execute('CREATE TABLE IF NOT EXISTS _probe (id INTEGER)')
-    _c.commit()
-    _c.execute('DROP TABLE _probe')
-    _c.commit()
-    _c.close()
-except Exception:
-    _DB_PATH = Path('/tmp/news_analysis.db')
+# ============================================================
+# DATABASE CONFIGURATION
+# ============================================================
+
+# SQLite database.
+# For Render persistence, set DJANGO_DB_PATH to a file
+# inside a mounted persistent disk.
+
+DB_PATH = os.environ.get(
+    'DJANGO_DB_PATH',
+    str(BASE_DIR / 'db.sqlite3')
+)
+
+_DB_PATH = Path(DB_PATH)
+
+# Create the parent directory if it does not exist.
+_DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': str(_DB_PATH),
-        'OPTIONS': {'timeout': 30},
+        'OPTIONS': {
+            'timeout': 30,
+        },
     }
 }
 
+
+# ============================================================
+# PASSWORD VALIDATION
+# ============================================================
+
 AUTH_PASSWORD_VALIDATORS = [
-    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
+    {
+        'NAME': (
+            'django.contrib.auth.password_validation.'
+            'UserAttributeSimilarityValidator'
+        ),
+    },
+    {
+        'NAME': (
+            'django.contrib.auth.password_validation.'
+            'MinimumLengthValidator'
+        ),
+    },
+    {
+        'NAME': (
+            'django.contrib.auth.password_validation.'
+            'CommonPasswordValidator'
+        ),
+    },
+    {
+        'NAME': (
+            'django.contrib.auth.password_validation.'
+            'NumericPasswordValidator'
+        ),
+    },
 ]
 
+
+# ============================================================
+# INTERNATIONALIZATION
+# ============================================================
+
 LANGUAGE_CODE = 'en-us'
+
 TIME_ZONE = 'Asia/Kolkata'
+
 USE_I18N = True
+
 USE_TZ = True
 
+
+# ============================================================
+# STATIC FILE CONFIGURATION
+# ============================================================
+
 STATIC_URL = '/static/'
-STATICFILES_DIRS = [BASE_DIR / 'static']
+
+STATICFILES_DIRS = [
+    BASE_DIR / 'static',
+]
+
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-# WhiteNoise for efficient static file serving on Render
 STORAGES = {
-    "default": {
-        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
     },
-    "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
+
+    'staticfiles': {
+        'BACKEND': (
+            'whitenoise.storage.CompressedManifestStaticFilesStorage'
+        ),
     },
 }
 
+
+# ============================================================
+# MEDIA FILE CONFIGURATION
+# ============================================================
+
 MEDIA_URL = '/media/'
+
 MEDIA_ROOT = BASE_DIR / 'media'
+
+
+# ============================================================
+# DEFAULT PRIMARY KEY
+# ============================================================
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Upload limits — datasets only; models are trained server-side
-FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10 MB in memory
+
+# ============================================================
+# FILE UPLOAD CONFIGURATION
+# ============================================================
+
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
+
 DATA_UPLOAD_MAX_MEMORY_SIZE = 12 * 1024 * 1024
-# Hard cap for CSV dataset uploads (enforced in views as well)
-MAX_DATASET_UPLOAD_BYTES = 25 * 1024 * 1024  # 25 MB
+
+MAX_DATASET_UPLOAD_BYTES = 25 * 1024 * 1024
+
+
+# ============================================================
+# DJANGO MESSAGES
+# ============================================================
 
 from django.contrib.messages import constants as messages
 
@@ -156,17 +289,35 @@ MESSAGE_TAGS = {
     messages.ERROR: 'error',
 }
 
-# Logging — avoid leaking paths in production responses; log server-side only
+
+# ============================================================
+# LOGGING
+# ============================================================
+
 LOGGING = {
     'version': 1,
+
     'disable_existing_loggers': False,
+
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
         },
     },
+
     'root': {
         'handlers': ['console'],
         'level': 'INFO' if not DEBUG else 'DEBUG',
     },
 }
+
+
+# ============================================================
+# SESSION CONFIGURATION
+# ============================================================
+
+SESSION_COOKIE_HTTPONLY = True
+
+SESSION_COOKIE_SAMESITE = 'Lax'
+
+CSRF_COOKIE_SAMESITE = 'Lax'
